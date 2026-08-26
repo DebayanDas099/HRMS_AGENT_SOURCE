@@ -1,0 +1,649 @@
+.doc-repo-page .doc-stats-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.doc-toolbar {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.doc-toolbar-left,
+.doc-toolbar-right,
+.doc-table-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.doc-type-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+}
+
+.doc-type-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.doc-type-tab iconify-icon {
+    font-size: 1.1rem;
+}
+
+.doc-type-tab:hover {
+    color: var(--primary);
+    background: rgba(99, 102, 241, 0.08);
+}
+
+.doc-type-tab.active {
+    color: white;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.25);
+}
+
+.doc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.doc-field select,
+.doc-search-box input {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 0.85rem;
+    font-family: inherit;
+    font-size: 0.85rem;
+    background: white;
+    min-width: 180px;
+}
+
+.doc-search-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.55rem 0.85rem;
+    min-width: 240px;
+}
+
+.doc-search-box input {
+    border: none;
+    padding: 0;
+    min-width: 0;
+    width: 100%;
+}
+
+.doc-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 0.65rem;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: var(--primary);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text-dark);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-outline:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.upload-progress {
+    margin-bottom: 1rem;
+}
+
+.upload-progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+}
+
+.upload-progress-bar {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+}
+
+.upload-progress-fill {
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    transition: width 0.25s ease;
+}
+
+.upload-progress-fill.ingestion {
+    background: linear-gradient(90deg, #0ea5e9, #6366f1);
+}
+
+.doc-select-col {
+    width: 42px;
+    text-align: center;
+}
+
+.doc-select-all,
+.doc-select-checkbox-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.doc-select-all input,
+.doc-select-checkbox-wrap input {
+    width: 16px;
+    height: 16px;
+    accent-color: #6366f1;
+    cursor: pointer;
+}
+
+.doc-ingestion-cell {
+    min-width: 180px;
+}
+
+.doc-ingestion-status {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.doc-ingestion-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.doc-ingestion-badge.pending {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.doc-ingestion-badge.processing {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.doc-ingestion-badge.completed {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.doc-ingestion-badge.failed {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.doc-ingestion-badge.skipped {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.doc-chunk-count {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.doc-ingest-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+}
+
+.doc-ingest-progress-bar {
+    flex: 1;
+    height: 8px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+}
+
+.doc-ingest-progress-fill {
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #0ea5e9, #6366f1);
+    transition: width 0.25s ease;
+}
+
+.doc-ingest-progress-fill.failed {
+    background: linear-gradient(90deg, #f87171, #ef4444);
+}
+
+.doc-ingest-progress-text {
+    min-width: 42px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.doc-ingestion-error {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.72rem;
+    color: #b91c1c;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#startIngestionBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.upload-progress-message {
+    margin-top: 0.65rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.doc-table-wrap {
+    overflow-x: auto;
+}
+
+.doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.doc-table th,
+.doc-table td {
+    padding: 0.85rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.doc-table th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+.doc-table tbody tr:hover {
+    background: rgba(99, 102, 241, 0.04);
+}
+
+.doc-id-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    padding: 0.2rem 0.45rem;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.doc-category-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.doc-category-badge.policy {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.doc-category-badge.training {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.doc-path {
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-muted);
+}
+
+.doc-toggle {
+    position: relative;
+    width: 42px;
+    height: 24px;
+    display: inline-block;
+}
+
+.doc-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.doc-toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: #cbd5e1;
+    border-radius: 999px;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.doc-toggle-slider::before {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 3px;
+    top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: var(--transition);
+}
+
+.doc-toggle input:checked + .doc-toggle-slider {
+    background: #6366f1;
+}
+
+.doc-toggle input:checked + .doc-toggle-slider::before {
+    transform: translateX(18px);
+}
+
+.empty-state.compact {
+    padding: 2rem 1rem;
+}
+
+.doc-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 0.75rem 0.25rem;
+    border-top: 1px solid var(--border);
+    margin-top: 0.5rem;
+}
+
+.doc-pagination-info {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.doc-pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.doc-pagination-pages {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.doc-page-btn {
+    min-width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text-dark);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.doc-page-btn:hover,
+.doc-page-btn.active {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(99, 102, 241, 0.08);
+}
+
+.doc-page-btn.active {
+    color: white;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+body.doc-modal-open {
+    overflow: hidden;
+}
+
+.doc-upload-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+}
+
+.doc-upload-modal[hidden] {
+    display: none;
+}
+
+.doc-upload-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+}
+
+.doc-upload-modal-dialog {
+    position: relative;
+    width: min(1020px, 100%);
+    max-height: calc(100vh - 3rem);
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-radius: 18px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+    overflow: hidden;
+}
+
+.doc-upload-modal-header,
+.doc-upload-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+}
+
+.doc-upload-modal-header {
+    border-bottom: 1px solid var(--border);
+}
+
+.doc-upload-modal-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.doc-upload-modal-header p {
+    margin: 0.35rem 0 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.doc-upload-modal-body {
+    padding: 1rem 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.doc-upload-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: #f8fafc;
+}
+
+.doc-upload-item-file {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.doc-upload-item-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--primary);
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+
+.doc-upload-item-file strong,
+.doc-upload-item-file span {
+    display: block;
+}
+
+.doc-upload-item-file strong {
+    font-size: 0.88rem;
+    word-break: break-word;
+}
+
+.doc-upload-item-file span {
+    margin-top: 0.2rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.doc-upload-item-title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.doc-upload-item-title input {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 0.85rem;
+    font-family: inherit;
+    font-size: 0.85rem;
+    background: white;
+}
+
+.doc-upload-item-title input.invalid {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.doc-upload-modal-footer {
+    border-top: 1px solid var(--border);
+}
+
+.doc-upload-modal-footer .btn-gradient {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+@media (max-width: 1200px) {
+    .doc-repo-page .doc-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .doc-toolbar,
+    .doc-table-header,
+    .doc-table-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .doc-type-tabs {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .doc-type-tab {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .doc-pagination,
+    .doc-upload-item {
+        flex-direction: column;
+        grid-template-columns: 1fr;
+    }
+
+    .doc-pagination-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .doc-repo-page .doc-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}

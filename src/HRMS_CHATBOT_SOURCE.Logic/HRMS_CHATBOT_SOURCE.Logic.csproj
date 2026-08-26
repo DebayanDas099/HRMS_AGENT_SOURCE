@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="MCC.Foundation.MSSQLHelper" Version="0.0.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.Domain\HRMS_CHATBOT_SOURCE.Domain.csproj" />
+    <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.Repo\HRMS_CHATBOT_SOURCE.Repo.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,201 @@
+@{
+    ViewData["Title"] = "Document Repository";
+    Layout = "_AdminLayout";
+}
+
+<div class="doc-repo-page">
+    <div class="dashboard-header animate-up">
+        <div>
+            <p class="dashboard-greeting" id="docRepoStatus">Ready to ingest new documents.</p>
+            <h1 class="dashboard-title">Document Corpus</h1>
+            <p class="dashboard-subtitle">Upload policy documents, training materials, images, and videos to Azure blob storage.</p>
+        </div>
+    </div>
+
+    <div class="stats-grid doc-stats-grid animate-up delay-1">
+        <div class="stat-card">
+            <div class="stat-icon purple">
+                <iconify-icon icon="ph:files-duotone"></iconify-icon>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Total Documents</span>
+                <span class="stat-value" id="statTotalDocuments">0</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <iconify-icon icon="ph:file-text-duotone"></iconify-icon>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Policy Documents</span>
+                <span class="stat-value" id="statPolicyDocuments">0</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon teal">
+                <iconify-icon icon="ph:graduation-cap-duotone"></iconify-icon>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Training Materials</span>
+                <span class="stat-value" id="statTrainingDocuments">0</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon pink">
+                <iconify-icon icon="ph:check-circle-duotone"></iconify-icon>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Active Documents</span>
+                <span class="stat-value" id="statActiveDocuments">0</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon purple">
+                <iconify-icon icon="ph:archive-duotone"></iconify-icon>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Inactive Documents</span>
+                <span class="stat-value" id="statInactiveDocuments">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="doc-toolbar panel-card animate-up delay-2">
+        <div class="doc-toolbar-left">
+            <div class="doc-type-tabs" role="tablist" aria-label="Document type">
+                <button class="doc-type-tab active" type="button" role="tab" aria-selected="true" data-category="Policy" id="tabPolicy">
+                    <iconify-icon icon="ph:file-text-duotone"></iconify-icon>
+                    <span>Policy Documents</span>
+                </button>
+                <button class="doc-type-tab" type="button" role="tab" aria-selected="false" data-category="Training" id="tabTraining">
+                    <iconify-icon icon="ph:graduation-cap-duotone"></iconify-icon>
+                    <span>Training Materials</span>
+                </button>
+            </div>
+        </div>
+        <div class="doc-toolbar-right">
+            <input type="file" id="bulkFileInput" multiple accept="@DocumentUploadConstants.AcceptAttribute" hidden />
+            <button class="btn-outline btn-sm" type="button" id="startIngestionBtn" disabled>
+                <iconify-icon icon="ph:database-duotone"></iconify-icon>
+                <span>Start Ingestion</span>
+            </button>
+            <button class="btn-outline btn-sm" type="button" id="bulkUploadBtn">
+                <iconify-icon icon="ph:upload-simple-duotone"></iconify-icon>
+                <span>Bulk Upload</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="upload-progress panel-card animate-up delay-2" id="ingestionProgressPanel" hidden>
+        <div class="upload-progress-header">
+            <strong id="ingestionProgressTitle">Ingesting documents...</strong>
+            <span id="ingestionProgressCount">0 / 0</span>
+        </div>
+        <div class="upload-progress-bar">
+            <div class="upload-progress-fill ingestion" id="ingestionProgressFill"></div>
+        </div>
+        <p class="upload-progress-message" id="ingestionProgressMessage"></p>
+    </div>
+
+    <div class="upload-progress panel-card animate-up delay-2" id="uploadProgressPanel" hidden>
+        <div class="upload-progress-header">
+            <strong id="uploadProgressTitle">Uploading documents...</strong>
+            <span id="uploadProgressCount">0 / 0</span>
+        </div>
+        <div class="upload-progress-bar">
+            <div class="upload-progress-fill" id="uploadProgressFill"></div>
+        </div>
+        <p class="upload-progress-message" id="uploadProgressMessage"></p>
+    </div>
+
+    <div class="panel-card animate-up delay-3 page-panel">
+        <div class="panel-header doc-table-header">
+            <div>
+                <h3 id="docTableTitle">Policy Documents</h3>
+                <p id="docTableSubtitle">Uploaded policy files stored in Azure blob storage</p>
+            </div>
+            <div class="doc-table-actions">
+                <div class="doc-search-box">
+                    <iconify-icon icon="ph:magnifying-glass-duotone"></iconify-icon>
+                    <input type="search" id="documentSearch" placeholder="Search documents..." />
+                </div>
+                <span class="doc-count-badge" id="documentCountBadge">0</span>
+                <button class="btn-icon" type="button" id="refreshDocumentsBtn" title="Refresh">
+                    <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
+                </button>
+            </div>
+        </div>
+
+        <div class="doc-table-wrap">
+            <table class="doc-table" id="documentsTable">
+                <thead>
+                    <tr>
+                        <th class="doc-select-col">
+                            <label class="doc-select-all" title="Select all on this page">
+                                <input type="checkbox" id="selectAllDocuments" />
+                            </label>
+                        </th>
+                        <th>Active</th>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Ingestion</th>
+                        <th>Path</th>
+                        <th>Created By</th>
+                        <th>Created Date</th>
+                    </tr>
+                </thead>
+                <tbody id="documentsTableBody">
+                    <tr class="doc-empty-row">
+                        <td colspan="9">
+                            <div class="empty-state compact">
+                                <div class="empty-state-icon">
+                                    <iconify-icon icon="ph:folder-open-duotone"></iconify-icon>
+                                </div>
+                                <h4>No documents yet</h4>
+                                <p>Use bulk upload to add policy or training documents.</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="doc-pagination" id="docPagination" hidden>
+            <div class="doc-pagination-info" id="paginationInfo">Showing 0 of 0</div>
+            <div class="doc-pagination-controls">
+                <button class="btn-outline btn-sm" type="button" id="prevPageBtn" disabled>Previous</button>
+                <div class="doc-pagination-pages" id="paginationPages"></div>
+                <button class="btn-outline btn-sm" type="button" id="nextPageBtn" disabled>Next</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="doc-upload-modal" id="uploadModal" hidden aria-hidden="true">
+    <div class="doc-upload-modal-backdrop" id="uploadModalBackdrop"></div>
+    <div class="doc-upload-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle">
+        <div class="doc-upload-modal-header">
+            <div>
+                <h3 id="uploadModalTitle">Prepare Upload</h3>
+                <p id="uploadModalSubtitle">Add a title for each document before uploading.</p>
+            </div>
+            <button class="btn-icon doc-upload-modal-close" type="button" id="closeUploadModal" title="Close">
+                <iconify-icon icon="ph:x-duotone"></iconify-icon>
+            </button>
+        </div>
+        <div class="doc-upload-modal-body" id="uploadModalList"></div>
+        <div class="doc-upload-modal-footer">
+            <button class="btn-outline" type="button" id="cancelUploadModal">Cancel</button>
+            <button class="btn-gradient btn-sm" type="button" id="confirmUploadModal">
+                <iconify-icon icon="ph:cloud-arrow-up-duotone"></iconify-icon>
+                <span>Upload Documents</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="~/css/document-repository.css" asp-append-version="true" />
+    <script src="~/js/document-repository.js" asp-append-version="true"></script>
+}

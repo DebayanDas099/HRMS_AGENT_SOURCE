@@ -1,0 +1,100 @@
+@{
+    var userName = User.Identity?.Name ?? "Admin";
+    var initials = string.Join("", userName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(n => n[0])).ToUpper();
+    var activeController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - HRMS Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+</head>
+<body class="admin-body">
+    <div class="admin-bg">
+        <div class="bg-blob blob-1"></div>
+        <div class="bg-blob blob-2"></div>
+        <div class="bg-blob blob-3"></div>
+    </div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-inner">
+            <div class="sidebar-brand">
+                <div class="brand-mark">
+                    <iconify-icon icon="ph:robot-duotone"></iconify-icon>
+                </div>
+                <span class="brand-text">HRMS Admin</span>
+            </div>
+
+            <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle sidebar">
+                <iconify-icon icon="ph:list-duotone"></iconify-icon>
+            </button>
+
+            <nav class="sidebar-nav">
+                <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index"
+                   class="nav-item @(activeController == "Dashboard" ? "active" : null)">
+                    <iconify-icon icon="ph:squares-four-duotone"></iconify-icon>
+                    <span>Dashboard</span>
+                </a>
+                <a asp-area="Admin" asp-controller="DocumentRepository" asp-action="Index"
+                   class="nav-item @(activeController == "DocumentRepository" ? "active" : null)">
+                    <iconify-icon icon="ph:folder-open-duotone"></iconify-icon>
+                    <span>Document Repository</span>
+                </a>
+                <a asp-area="Admin" asp-controller="Conversations" asp-action="Index"
+                   class="nav-item @(activeController == "Conversations" ? "active" : null)">
+                    <iconify-icon icon="ph:chats-circle-duotone"></iconify-icon>
+                    <span>Conversations</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a asp-area="Admin" asp-controller="Account" asp-action="Logout" class="nav-item logout-btn" id="logoutBtn">
+                    <iconify-icon icon="ph:sign-out-duotone"></iconify-icon>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <div class="admin-main">
+        <header class="admin-topbar">
+            <div class="topbar-left">
+                <button class="mobile-toggle" id="mobileToggle" type="button" aria-label="Open menu">
+                    <iconify-icon icon="ph:list-duotone"></iconify-icon>
+                </button>
+                <div class="search-box">
+                    <iconify-icon icon="ph:magnifying-glass-duotone"></iconify-icon>
+                    <input type="search" placeholder="Search anything..." />
+                </div>
+            </div>
+            <div class="topbar-right">
+                <button class="topbar-btn" type="button">
+                    <iconify-icon icon="ph:bell-duotone"></iconify-icon>
+                    <span class="notif-dot"></span>
+                </button>
+                <div class="user-chip">
+                    <div class="user-avatar">@initials</div>
+                    <div class="user-info">
+                        <strong>@userName</strong>
+                        <span>Administrator</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="admin-content">
+            @RenderBody()
+        </main>
+    </div>
+
+    <script src="~/js/admin-auth.js" asp-append-version="true"></script>
+    <script src="~/js/admin.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

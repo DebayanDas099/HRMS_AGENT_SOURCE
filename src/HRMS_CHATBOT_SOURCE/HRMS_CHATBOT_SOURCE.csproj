@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.Domain\HRMS_CHATBOT_SOURCE.Domain.csproj" />
+    <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.Infrastructure\HRMS_CHATBOT_SOURCE.Infrastructure.csproj" />
+    <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.Logic\HRMS_CHATBOT_SOURCE.Logic.csproj" />
+    <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.Repo\HRMS_CHATBOT_SOURCE.Repo.csproj" />
+    <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.Agent\HRMS_CHATBOT_SOURCE.Agent.csproj" />
+    <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.RAG\HRMS_CHATBOT_SOURCE.RAG.csproj" />
+  </ItemGroup>
+
+</Project>
