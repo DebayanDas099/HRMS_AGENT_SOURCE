@@ -1,0 +1,134 @@
+using System.Data;
+using HRMS_CHATBOT_SOURCE.Domain.Dto.Request;
+using HRMS_CHATBOT_SOURCE.Domain.Models;
+using HRMS_CHATBOT_SOURCE.Foundation.Common;
+using HRMS_CHATBOT_SOURCE.Infrastructure.Core;
+using MCC.Foundation.MSSQLHelper.Helper;
+using MCC.Foundation.MSSQLHelper.Models;
+using Microsoft.Data.SqlClient;
+using SqlCommon = HRMS_CHATBOT_SOURCE.Domain.Constants.Common;
+
+namespace HRMS_CHATBOT_SOURCE.Repo.Admin;
+
+public class UserProfileRepo : IUserProfileRepo
+{
+    private readonly ISqlHelper _sqlHelper;
+    private readonly IServiceContext _serviceContext;
+
+    public UserProfileRepo(ISqlHelper sqlHelper, IServiceContext serviceContext)
+    {
+        _sqlHelper = sqlHelper;
+        _serviceContext = serviceContext;
+    }
+
+    public async Task<MSSQLResponse?> ValidateAdminLoginAsync(LoginRequest? request, CancellationToken cancellationToken = default)
+    {
+        var sqlParams = new SqlParameter[]
+        {
+            new()
+            {
+                ParameterName = "@userLoginName",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = -1,
+                Value = Utils.IIFStringOrDBNull(request?.UserId)
+            },
+            new()
+            {
+                ParameterName = "@password",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = -1,
+                Value = Utils.IIFStringOrDBNull(request?.Password)
+            },
+            new()
+            {
+                ParameterName = "@mobile",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = -1,
+                Value = DBNull.Value
+            },
+            new()
+            {
+                ParameterName = "@deviceId",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = -1,
+                Value = DBNull.Value
+            },
+            new()
+            {
+                ParameterName = "@outputCode",
+                DbType = DbType.Int32,
+                Direction = ParameterDirection.Output
+            },
+            new()
+            {
+                ParameterName = "@outputMsg",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Output,
+                Size = -1
+            }
+        };
+
+        return new MSSQLResponse
+        {
+            Data = await _sqlHelper.FetchData(new ExecuteDataSetRequest
+            {
+                CommandText = "[dbo].[Validate_Admin_Login]",
+                CommandTimeout = SqlCommon.SQLCommandTimeOut,
+                CommandType = CommandType.StoredProcedure,
+                ConnectionProperties = _serviceContext.SQLConnectionModel,
+                IsMultipleTables = true,
+                Parameters = sqlParams
+            }),
+            RowsAffected = null,
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+    }
+
+    public async Task<MSSQLResponse?> UpdateLastAccessedAsync(
+        string? userId,
+        CancellationToken cancellationToken = default)
+    {
+        var sqlParams = new SqlParameter[]
+        {
+            new()
+            {
+                ParameterName = "@user_id",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 20,
+                Value = Utils.IIFStringOrDBNull(userId)
+            },
+            new()
+            {
+                ParameterName = "@outputCode",
+                DbType = DbType.Int32,
+                Direction = ParameterDirection.Output
+            },
+            new()
+            {
+                ParameterName = "@outputMsg",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Output,
+                Size = -1
+            }
+        };
+
+        return new MSSQLResponse
+        {
+            RowsAffected = await _sqlHelper.ExecuteNonQuery(new ExecuteNonQueryRequest
+            {
+                CommandText = "[dbo].[Update_Admin_User_Last_Accessed]",
+                CommandTimeout = SqlCommon.SQLCommandTimeOut,
+                CommandType = CommandType.StoredProcedure,
+                ConnectionProperties = _serviceContext.SQLConnectionModel,
+                Parameters = sqlParams
+            }),
+            Data = null,
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+    }
+}

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\HRMS_CHATBOT_SOURCE.Domain\HRMS_CHATBOT_SOURCE.Domain.csproj" />
+    <ProjectReference Include="..\..\HRMS_CHATBOT_SOURCE.Logic\HRMS_CHATBOT_SOURCE.Logic.csproj" />
+    <ProjectReference Include="..\..\HRMS_CHATBOT_SOURCE.Infrastructure\HRMS_CHATBOT_SOURCE.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\HRMS_CHATBOT_SOURCE.Agent\HRMS_CHATBOT_SOURCE.Agent.csproj" />
+    <ProjectReference Include="..\..\HRMS_CHATBOT_SOURCE.RAG\HRMS_CHATBOT_SOURCE.RAG.csproj" />
+  </ItemGroup>
+
+</Project>

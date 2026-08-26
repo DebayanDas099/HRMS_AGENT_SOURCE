@@ -1,0 +1,202 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "_AdminLayout";
+    var greeting = DateTime.Now.Hour switch
+    {
+        < 12 => "Good Morning",
+        < 17 => "Good Afternoon",
+        _ => "Good Evening"
+    };
+}
+
+<div class="dashboard-header animate-up">
+    <div>
+        <p class="dashboard-greeting">@greeting</p>
+        <h1 class="dashboard-title">@Model.UserName!</h1>
+        <p class="dashboard-subtitle">Welcome back to your HRMS admin control center.</p>
+    </div>
+    <div class="header-actions">
+        <button class="btn-gradient btn-sm" type="button">
+            <iconify-icon icon="ph:plus-circle-duotone"></iconify-icon>
+            <span>New Action</span>
+        </button>
+    </div>
+</div>
+
+<div class="stats-grid animate-up delay-1">
+    <div class="stat-card">
+        <div class="stat-icon purple">
+            <iconify-icon icon="ph:files-duotone"></iconify-icon>
+        </div>
+        <div class="stat-info">
+            <span class="stat-label">Total Documents</span>
+            <span class="stat-value">@Model.TotalDocuments</span>
+            <span class="stat-change positive">In repository</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue">
+            <iconify-icon icon="ph:file-text-duotone"></iconify-icon>
+        </div>
+        <div class="stat-info">
+            <span class="stat-label">Policy Documents</span>
+            <span class="stat-value">@Model.PolicyDocuments</span>
+            <span class="stat-change positive">Policy category</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon teal">
+            <iconify-icon icon="ph:graduation-cap-duotone"></iconify-icon>
+        </div>
+        <div class="stat-info">
+            <span class="stat-label">Training Materials</span>
+            <span class="stat-value">@Model.TrainingDocuments</span>
+            <span class="stat-change positive">Training category</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon pink">
+            <iconify-icon icon="ph:check-circle-duotone"></iconify-icon>
+        </div>
+        <div class="stat-info">
+            <span class="stat-label">Active Documents</span>
+            <span class="stat-value">@Model.ActiveDocuments</span>
+            <span class="stat-change positive">Available for use</span>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid animate-up delay-2">
+    <div class="panel-card chart-panel">
+        <div class="panel-header">
+            <div>
+                <h3>Activity Overview</h3>
+                <p>Chatbot engagement over the last 7 days</p>
+            </div>
+            <button class="btn-icon" type="button">
+                <iconify-icon icon="ph:dots-three-outline-duotone"></iconify-icon>
+            </button>
+        </div>
+        <div class="chart-placeholder">
+            <svg viewBox="0 0 400 120" preserveAspectRatio="none" class="area-chart">
+                <defs>
+                    <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#6366f1" stop-opacity="0.4" />
+                        <stop offset="100%" stop-color="#6366f1" stop-opacity="0" />
+                    </linearGradient>
+                </defs>
+                <path d="M0,80 C40,70 60,40 100,50 C140,60 160,20 200,30 C240,40 260,60 300,45 C340,30 360,50 400,25 L400,120 L0,120 Z" fill="url(#chartGradient)" />
+                <path d="M0,80 C40,70 60,40 100,50 C140,60 160,20 200,30 C240,40 260,60 300,45 C340,30 360,50 400,25" fill="none" stroke="#6366f1" stroke-width="2.5" />
+            </svg>
+            <div class="chart-labels">
+                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel-card profile-panel">
+        <div class="panel-header">
+            <div>
+                <h3>Your Profile</h3>
+                <p>Account information</p>
+            </div>
+        </div>
+        <div class="profile-card-inner">
+            <div class="profile-avatar">
+                <iconify-icon icon="ph:user-circle-duotone"></iconify-icon>
+            </div>
+            <div class="profile-details">
+                <h4>@Model.UserName</h4>
+                <p>@Model.Designation</p>
+            </div>
+        </div>
+        <ul class="profile-meta">
+            <li>
+                <iconify-icon icon="ph:buildings-duotone"></iconify-icon>
+                <span>Department</span>
+                <strong>@Model.Department</strong>
+            </li>
+            <li>
+                <iconify-icon icon="ph:identification-badge-duotone"></iconify-icon>
+                <span>Group Code</span>
+                <strong>@Model.GroupCode</strong>
+            </li>
+            <li>
+                <iconify-icon icon="ph:shield-check-duotone"></iconify-icon>
+                <span>Access Level</span>
+                <strong class="badge-admin">Administrator</strong>
+            </li>
+        </ul>
+    </div>
+
+    <div class="panel-card quick-actions">
+        <div class="panel-header">
+            <div>
+                <h3>Quick Actions</h3>
+                <p>Manage your HRMS chatbot</p>
+            </div>
+        </div>
+        <div class="action-buttons">
+            <a asp-area="Admin" asp-controller="DocumentRepository" asp-action="Index" class="action-btn">
+                <iconify-icon icon="ph:folder-open-duotone"></iconify-icon>
+                <span>Document Repository</span>
+            </a>
+            <a asp-area="Admin" asp-controller="Conversations" asp-action="Index" class="action-btn">
+                <iconify-icon icon="ph:chats-circle-duotone"></iconify-icon>
+                <span>Conversations</span>
+            </a>
+            <a asp-area="Admin" asp-controller="DocumentRepository" asp-action="Index" class="action-btn">
+                <iconify-icon icon="ph:upload-simple-duotone"></iconify-icon>
+                <span>Upload Documents</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="panel-card activity-panel">
+        <div class="panel-header">
+            <div>
+                <h3>Recent Activity</h3>
+                <p>Latest system events</p>
+            </div>
+        </div>
+        <ul class="activity-list">
+            <li class="activity-item">
+                <div class="activity-icon">
+                    <iconify-icon icon="ph:sign-in-duotone"></iconify-icon>
+                </div>
+                <div class="activity-text">
+                    <strong>Admin login successful</strong>
+                    <span>Just now · @User.Identity?.Name</span>
+                </div>
+            </li>
+            <li class="activity-item">
+                <div class="activity-icon">
+                    <iconify-icon icon="ph:chat-teardrop-duotone"></iconify-icon>
+                </div>
+                <div class="activity-text">
+                    <strong>New chat session started</strong>
+                    <span>5 min ago · Employee query</span>
+                </div>
+            </li>
+            <li class="activity-item">
+                <div class="activity-icon">
+                    <iconify-icon icon="ph:book-open-duotone"></iconify-icon>
+                </div>
+                <div class="activity-text">
+                    <strong>Knowledge base updated</strong>
+                    <span>1 hour ago · HR Policies</span>
+                </div>
+            </li>
+            <li class="activity-item">
+                <div class="activity-icon">
+                    <iconify-icon icon="ph:bell-duotone"></iconify-icon>
+                </div>
+                <div class="activity-text">
+                    <strong>System health check passed</strong>
+                    <span>3 hours ago · All services online</span>
+                </div>
+            </li>
+        </ul>
+    </div>
+</div>

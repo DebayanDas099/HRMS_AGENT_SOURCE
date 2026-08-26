@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="MCC.Foundation.MSSQLHelper" Version="0.0.7" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.9" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.Domain\HRMS_CHATBOT_SOURCE.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Program.cs" />
+    <Compile Remove="Common\HttpHelper.cs" />
+    <Compile Remove="Common\IHttpHelper.cs" />
+    <Compile Remove="Common\FromJsonQueryAttribute.cs" />
+    <Compile Remove="Common\IdentityEncryption.cs" />
+    <Compile Remove="Common\Encryption.cs" />
+  </ItemGroup>
+
+</Project>

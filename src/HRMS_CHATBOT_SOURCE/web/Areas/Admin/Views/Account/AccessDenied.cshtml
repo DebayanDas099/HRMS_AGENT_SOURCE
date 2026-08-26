@@ -1,0 +1,27 @@
+@{
+    ViewData["Title"] = "Access Denied";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - HRMS Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <link rel="stylesheet" href="~/css/admin-login.css" asp-append-version="true" />
+</head>
+<body class="login-body">
+    <div class="access-denied-card animate-in">
+        <iconify-icon icon="ph:shield-warning-duotone" class="denied-icon"></iconify-icon>
+        <h1>Access Denied</h1>
+        <p>@(ViewData["ErrorMessage"] as string ?? "You do not have permission to access the admin panel.")</p>
+        <a asp-area="Admin" asp-controller="Account" asp-action="Login" class="btn-gradient">
+            <span>Back to Login</span>
+            <iconify-icon icon="ph:arrow-left-duotone"></iconify-icon>
+        </a>
+    </div>
+</body>
+</html>

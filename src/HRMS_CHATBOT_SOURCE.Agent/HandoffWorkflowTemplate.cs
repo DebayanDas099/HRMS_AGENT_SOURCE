@@ -1,0 +1,106 @@
+using HRMS_CHATBOT_SOURCE.Agent.Configuration;
+using HRMS_CHATBOT_SOURCE.Agent.Skills;
+using HRMS_CHATBOT_SOURCE.Domain.Constants;
+using HRMS_CHATBOT_SOURCE.Domain.Dto.Settings;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace HRMS_CHATBOT_SOURCE.Agent;
+
+/// <summary>
+/// Template for a Microsoft Agent Framework handoff workflow backed by Azure AI Foundry.
+/// Agent instances are intentionally not created yet.
+/// </summary>
+public sealed class HandoffWorkflowTemplate
+{
+    private readonly AgentFoundrySettings _foundrySettings;
+    private readonly ILogger<HandoffWorkflowTemplate> _logger;
+
+    public HandoffWorkflowTemplate(
+        IOptions<AgentFoundrySettings> foundryOptions,
+        ILogger<HandoffWorkflowTemplate> logger)
+    {
+        _foundrySettings = foundryOptions.Value;
+        _logger = logger;
+    }
+
+    public AgentFrameworkBlueprint DescribeBlueprint()
+    {
+        return new AgentFrameworkBlueprint
+        {
+            WorkflowName = AgentHandoffTopology.WorkflowName,
+            StartAgent = AgentHandoffTopology.StartAgent,
+            ChatModel = _foundrySettings.ChatDeployment ?? _foundrySettings.ChatModel,
+            EmbeddingModel = _foundrySettings.EmbeddingModel,
+            Participants =
+            [
+                new AgentBlueprint
+                {
+                    Name = AgentNames.Supervisor,
+                    SkillPath = AgentSkillPaths.GetSkillPath(AgentNames.Supervisor),
+                    Role = "Coordinator"
+                },
+                new AgentBlueprint
+                {
+                    Name = AgentNames.LeaveApplication,
+                    SkillPath = AgentSkillPaths.GetSkillPath(AgentNames.LeaveApplication),
+                    Role = "Specialist"
+                },
+                new AgentBlueprint
+                {
+                    Name = AgentNames.Document,
+                    SkillPath = AgentSkillPaths.GetSkillPath(AgentNames.Document),
+                    Role = "Specialist"
+                },
+                new AgentBlueprint
+                {
+                    Name = AgentNames.Knowledge,
+                    SkillPath = AgentSkillPaths.GetSkillPath(AgentNames.Knowledge),
+                    Role = "Specialist"
+                }
+            ],
+            Handoffs = AgentHandoffTopology.OutboundHandoffs
+        };
+    }
+
+    public Task<bool> ValidateSkillFilesAsync(CancellationToken cancellationToken = default)
+    {
+        var missing = DescribeBlueprint().Participants
+            .Where(participant => !File.Exists(participant.SkillPath))
+            .Select(participant => participant.Name)
+            .ToList();
+
+        if (missing.Count > 0)
+        {
+            _logger.LogWarning("Missing skill.md files for agents: {Agents}", string.Join(", ", missing));
+            return Task.FromResult(false);
+        }
+
+        return Task.FromResult(true);
+    }
+}
+
+public sealed class AgentFrameworkBlueprint
+{
+    public string WorkflowName { get; init; } = string.Empty;
+
+    public string StartAgent { get; init; } = string.Empty;
+
+    public string ChatModel { get; init; } = string.Empty;
+
+    public string EmbeddingModel { get; init; } = string.Empty;
+
+    public IReadOnlyList<AgentBlueprint> Participants { get; init; } = [];
+
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> Handoffs { get; init; }
+        = new Dictionary<string, IReadOnlyList<string>>();
+}
+
+public sealed class AgentBlueprint
+{
+    public string Name { get; init; } = string.Empty;
+
+    public string SkillPath { get; init; } = string.Empty;
+
+    public string Role { get; init; } = string.Empty;
+}

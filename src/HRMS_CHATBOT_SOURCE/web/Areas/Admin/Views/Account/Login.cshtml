@@ -1,0 +1,125 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Admin Login";
+    Layout = null;
+    var returnUrl = Model.ReturnUrl;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - HRMS Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <link rel="stylesheet" href="~/css/admin-login.css" asp-append-version="true" />
+</head>
+<body class="login-body">
+    <div class="login-bg-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+
+    <div class="login-card animate-in">
+        <div class="login-brand-panel">
+            <div class="brand-overlay"></div>
+            <div class="brand-content">
+                <div class="brand-logo">
+                    <iconify-icon icon="ph:robot-duotone" class="brand-icon"></iconify-icon>
+                    <span>HRMS Chatbot</span>
+                </div>
+
+                <div class="brand-visual">
+                    <div class="floating-orbit orbit-1"></div>
+                    <div class="floating-orbit orbit-2"></div>
+                    <div class="brand-hero-icon">
+                        <iconify-icon icon="ph:sparkle-duotone"></iconify-icon>
+                    </div>
+                </div>
+
+                <div class="brand-tagline">
+                    <h2>Powering Your<br /><span>Workforce Intelligence</span></h2>
+                    <p>Secure admin portal for HRMS chatbot management and analytics.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="login-form-panel">
+            <div class="form-wrapper">
+                <div class="form-header">
+                    <h1>Login to your account</h1>
+                    <p>Enter your credentials to access the admin dashboard.</p>
+                </div>
+
+                <form id="loginForm"
+                      class="login-form"
+                      novalidate
+                      data-login-url="@Url.Action("ValidateLogin", "Account", new { area = "Admin" })">
+                    <input type="hidden" id="returnUrl" value="@returnUrl" />
+                    <div id="loginError" class="validation-summary" style="display:none;"></div>
+                @if (!string.IsNullOrWhiteSpace(ViewData["ErrorMessage"] as string))
+                {
+                    <div class="validation-summary">@ViewData["ErrorMessage"]</div>
+                }
+
+                    <div class="form-group">
+                        <label for="userIdInput">User ID <span class="required">*</span></label>
+                        <div class="input-wrap">
+                            <iconify-icon icon="ph:user-circle-duotone" class="input-icon"></iconify-icon>
+                            <input type="text"
+                                   id="userIdInput"
+                                   name="user_id"
+                                   class="form-control"
+                                   placeholder="Enter your user ID"
+                                   autocomplete="username"
+                                   value="@Model.UserId" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="passwordInput">Password <span class="required">*</span></label>
+                        <div class="input-wrap">
+                            <iconify-icon icon="ph:lock-key-duotone" class="input-icon"></iconify-icon>
+                            <input type="password"
+                                   id="passwordInput"
+                                   name="password"
+                                   class="form-control"
+                                   placeholder="Enter your password"
+                                   autocomplete="current-password" />
+                            <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility">
+                                <iconify-icon icon="ph:eye-duotone" id="eyeIcon"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-options">
+                        <label class="remember-me">
+                            <input type="checkbox" id="rememberMeInput" name="remember_me" @(Model.RememberMe ? "checked" : null) />
+                            <span class="checkmark"></span>
+                            Remember me
+                        </label>
+                    </div>
+
+                    <button type="button" class="btn-gradient btn-login" id="loginBtn" aria-busy="false">
+                        <span>Login</span>
+                        <iconify-icon icon="ph:arrow-right-duotone"></iconify-icon>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/js/admin-auth.js" asp-append-version="true"></script>
+    @if (ViewData["ClearClientAuth"] as bool? == true)
+    {
+        <script>
+            window.HrmsAdminAuth?.clearToken();
+        </script>
+    }
+    <script src="~/js/admin-login.js" asp-append-version="true"></script>
+</body>
+</html>

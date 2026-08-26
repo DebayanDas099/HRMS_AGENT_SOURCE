@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/HRMS_CHATBOT_SOURCE.Tests/HRMS_CHATBOT_SOURCE.Tests.csproj" />
+  </Folder>
+  <Project Path="HRMS_CHATBOT_SOURCE.Agent/HRMS_CHATBOT_SOURCE.Agent.csproj" />
+  <Project Path="HRMS_CHATBOT_SOURCE.Logic/HRMS_CHATBOT_SOURCE.Logic.csproj" />
+  <Project Path="HRMS_CHATBOT_SOURCE.Domain/HRMS_CHATBOT_SOURCE.Domain.csproj" />
+  <Project Path="HRMS_CHATBOT_SOURCE.Infrastructure/HRMS_CHATBOT_SOURCE.Infrastructure.csproj" />
+  <Project Path="HRMS_CHATBOT_SOURCE.RAG/HRMS_CHATBOT_SOURCE.RAG.csproj" />
+  <Project Path="HRMS_CHATBOT_SOURCE.Repo/HRMS_CHATBOT_SOURCE.Repo.csproj" Id="7ec48ee9-0e2b-4578-a409-70ad6b83041d" />
+  <Project Path="HRMS_CHATBOT_SOURCE.Foundation/HRMS_CHATBOT_SOURCE.Foundation.csproj" />
+  <Project Path="HRMS_CHATBOT_SOURCE/HRMS_CHATBOT_SOURCE.csproj" />
+</Solution>

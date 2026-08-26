@@ -1,0 +1,81 @@
+@{
+    ViewData["Title"] = "Conversations";
+    Layout = "_AdminLayout";
+}
+
+<div class="dashboard-header animate-up">
+    <div>
+        <p class="dashboard-greeting">Chat history</p>
+        <h1 class="dashboard-title">Conversations</h1>
+        <p class="dashboard-subtitle">Review employee chatbot sessions, queries, and responses.</p>
+    </div>
+    <div class="header-actions">
+        <button class="btn-gradient btn-sm" type="button">
+            <iconify-icon icon="ph:export-duotone"></iconify-icon>
+            <span>Export</span>
+        </button>
+    </div>
+</div>
+
+<div class="stats-grid animate-up delay-1">
+    <div class="stat-card">
+        <div class="stat-icon purple">
+            <iconify-icon icon="ph:chat-circle-dots-duotone"></iconify-icon>
+        </div>
+        <div class="stat-info">
+            <span class="stat-label">Total Sessions</span>
+            <span class="stat-value">0</span>
+            <span class="stat-change positive">All time</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue">
+            <iconify-icon icon="ph:calendar-duotone"></iconify-icon>
+        </div>
+        <div class="stat-info">
+            <span class="stat-label">Today</span>
+            <span class="stat-value">0</span>
+            <span class="stat-change positive">New sessions</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon teal">
+            <iconify-icon icon="ph:check-circle-duotone"></iconify-icon>
+        </div>
+        <div class="stat-info">
+            <span class="stat-label">Resolved</span>
+            <span class="stat-value">0</span>
+            <span class="stat-change positive">Completed chats</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon pink">
+            <iconify-icon icon="ph:timer-duotone"></iconify-icon>
+        </div>
+        <div class="stat-info">
+            <span class="stat-label">Avg Duration</span>
+            <span class="stat-value">—</span>
+            <span class="stat-change positive">Per session</span>
+        </div>
+    </div>
+</div>
+
+<div class="panel-card animate-up delay-2 page-panel">
+    <div class="panel-header">
+        <div>
+            <h3>Recent Conversations</h3>
+            <p>Latest employee interactions with the HRMS chatbot</p>
+        </div>
+        <button class="btn-icon" type="button" title="Refresh">
+            <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
+        </button>
+    </div>
+
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <iconify-icon icon="ph:chats-circle-duotone"></iconify-icon>
+        </div>
+        <h4>No conversations yet</h4>
+        <p>Employee chat sessions will appear here once users start interacting with the chatbot.</p>
+    </div>
+</div>
