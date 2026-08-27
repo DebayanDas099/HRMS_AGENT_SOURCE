@@ -1,4 +1,4 @@
-using Google.Protobuf.Collections;
+using Grpc.Core;
 using HRMS_CHATBOT_SOURCE.Domain.Constants;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Settings;
 using HRMS_CHATBOT_SOURCE.RAG.Abstractions;
@@ -12,6 +12,8 @@ namespace HRMS_CHATBOT_SOURCE.RAG.Services;
 
 public class QdrantVectorStoreService : IVectorStoreService
 {
+    private const string DocumentIdPayloadField = "document_id";
+
     private readonly QdrantClient _client;
     private readonly VectorStoreSettings _settings;
     private readonly ILogger<QdrantVectorStoreService> _logger;
@@ -34,21 +36,21 @@ public class QdrantVectorStoreService : IVectorStoreService
         }
 
         var exists = await _client.CollectionExistsAsync(_settings.CollectionName, cancellationToken);
-        if (exists)
+        if (!exists)
         {
-            return;
+            await _client.CreateCollectionAsync(
+                _settings.CollectionName,
+                new VectorParams
+                {
+                    Size = (ulong)_settings.VectorSize,
+                    Distance = Distance.Cosine
+                },
+                cancellationToken: cancellationToken);
+
+            _logger.LogInformation("Created Qdrant collection {CollectionName}.", _settings.CollectionName);
         }
 
-        await _client.CreateCollectionAsync(
-            _settings.CollectionName,
-            new VectorParams
-            {
-                Size = (ulong)_settings.VectorSize,
-                Distance = Distance.Cosine
-            },
-            cancellationToken: cancellationToken);
-
-        _logger.LogInformation("Created Qdrant collection {CollectionName}.", _settings.CollectionName);
+        await EnsureDocumentIdIndexAsync(cancellationToken);
     }
 
     public async Task UpsertAsync(
@@ -68,7 +70,7 @@ public class QdrantVectorStoreService : IVectorStoreService
             Vectors = point.Vector,
             Payload =
             {
-                ["document_id"] = point.DocumentId,
+                [DocumentIdPayloadField] = point.DocumentId,
                 ["chunk_index"] = point.ChunkIndex,
                 ["category"] = point.Category,
                 ["title"] = point.Title,
@@ -81,31 +83,85 @@ public class QdrantVectorStoreService : IVectorStoreService
         await _client.UpsertAsync(_settings.CollectionName, qdrantPoints, cancellationToken: cancellationToken);
     }
 
+    public async Task<bool> ExistsByDocumentIdAsync(long documentId, CancellationToken cancellationToken = default)
+    {
+        if (!await _client.CollectionExistsAsync(_settings.CollectionName, cancellationToken))
+        {
+            return false;
+        }
+
+        await EnsureDocumentIdIndexAsync(cancellationToken);
+
+        var count = await _client.CountAsync(
+            _settings.CollectionName,
+            filter: BuildDocumentIdFilter(documentId),
+            exact: true,
+            cancellationToken: cancellationToken);
+
+        return count > 0;
+    }
+
     public async Task DeleteByDocumentIdAsync(long documentId, CancellationToken cancellationToken = default)
     {
-        var exists = await _client.CollectionExistsAsync(_settings.CollectionName, cancellationToken);
-        if (!exists)
+        if (!await _client.CollectionExistsAsync(_settings.CollectionName, cancellationToken))
         {
             return;
         }
 
+        await EnsureDocumentIdIndexAsync(cancellationToken);
+
         await _client.DeleteAsync(
             _settings.CollectionName,
-            new Filter
+            BuildDocumentIdFilter(documentId),
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task EnsureDocumentIdIndexAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _client.CreatePayloadIndexAsync(
+                _settings.CollectionName,
+                fieldName: DocumentIdPayloadField,
+                schemaType: PayloadSchemaType.Integer,
+                cancellationToken: cancellationToken);
+
+            _logger.LogInformation(
+                "Ensured integer payload index on {FieldName} for collection {CollectionName}.",
+                DocumentIdPayloadField,
+                _settings.CollectionName);
+        }
+        catch (RpcException ex) when (IsPayloadIndexAlreadyExists(ex))
+        {
+            _logger.LogDebug(
+                "Payload index on {FieldName} already exists for collection {CollectionName}.",
+                DocumentIdPayloadField,
+                _settings.CollectionName);
+        }
+    }
+
+    private static Filter BuildDocumentIdFilter(long documentId)
+    {
+        return new Filter
+        {
+            Must =
             {
-                Must =
+                new Condition
                 {
-                    new Condition
+                    Field = new FieldCondition
                     {
-                        Field = new FieldCondition
-                        {
-                            Key = "document_id",
-                            Match = new Match { Integer = documentId }
-                        }
+                        Key = DocumentIdPayloadField,
+                        Match = new Match { Integer = documentId }
                     }
                 }
-            },
-            cancellationToken: cancellationToken);
+            }
+        };
+    }
+
+    private static bool IsPayloadIndexAlreadyExists(RpcException exception)
+    {
+        return exception.StatusCode == StatusCode.AlreadyExists
+            || exception.Status.Detail.Contains("already exists", StringComparison.OrdinalIgnoreCase);
     }
 
     private static PointId CreatePointId(long documentId, int chunkIndex)
