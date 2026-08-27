@@ -40,6 +40,18 @@ public class ApplicationSecrets
     [JsonProperty("qdrant_endpoint")]
     public string? QdrantEndpoint { get; set; }
 
+    [JsonProperty("azure_ai_search_admin_key")]
+    public string? AzureAiSearchAdminKey { get; set; }
+
+    [JsonProperty("azure_ai_search_endpoint")]
+    public string? AzureAiSearchEndpoint { get; set; }
+
+    [JsonProperty("azure_speech_api_key")]
+    public string? AzureSpeechApiKey { get; set; }
+
+    [JsonProperty("azure_speech_endpoint")]
+    public string? AzureSpeechEndpoint { get; set; }
+
     [JsonProperty("fetched_at_utc")]
     public DateTime FetchedAtUtc { get; set; } = DateTime.UtcNow;
 }
