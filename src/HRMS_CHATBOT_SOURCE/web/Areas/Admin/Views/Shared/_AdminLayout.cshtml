@@ -1,6 +1,13 @@
 @{
-    var userName = User.Identity?.Name ?? "Admin";
+    var userName = AdminAuthHelper.FindClaim(User, Context, "UserName", "UserId")
+        ?? User.Identity?.Name
+        ?? "Admin";
     var initials = string.Join("", userName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(n => n[0])).ToUpper();
+    if (string.IsNullOrWhiteSpace(initials))
+    {
+        initials = userName.Length >= 2 ? userName[..2].ToUpper() : "AD";
+    }
+
     var activeController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
 }
 <!DOCTYPE html>
@@ -11,16 +18,13 @@
     <title>@ViewData["Title"] - HRMS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-loaders.css" asp-append-version="true" />
 </head>
 <body class="admin-body">
-    <div class="admin-bg">
-        <div class="bg-blob blob-1"></div>
-        <div class="bg-blob blob-2"></div>
-        <div class="bg-blob blob-3"></div>
-    </div>
+    <div class="admin-bg"></div>
 
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-inner">
@@ -29,11 +33,11 @@
                     <iconify-icon icon="ph:robot-duotone"></iconify-icon>
                 </div>
                 <span class="brand-text">HRMS Admin</span>
+                <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle sidebar" aria-expanded="false">
+                    <iconify-icon icon="ph:caret-right-duotone" class="toggle-icon-expand"></iconify-icon>
+                    <iconify-icon icon="ph:caret-left-duotone" class="toggle-icon-collapse"></iconify-icon>
+                </button>
             </div>
-
-            <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle sidebar">
-                <iconify-icon icon="ph:list-duotone"></iconify-icon>
-            </button>
 
             <nav class="sidebar-nav">
                 <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index"
@@ -44,7 +48,7 @@
                 <a asp-area="Admin" asp-controller="DocumentRepository" asp-action="Index"
                    class="nav-item @(activeController == "DocumentRepository" ? "active" : null)">
                     <iconify-icon icon="ph:folder-open-duotone"></iconify-icon>
-                    <span>Document Repository</span>
+                    <span>Corpus</span>
                 </a>
                 <a asp-area="Admin" asp-controller="Conversations" asp-action="Index"
                    class="nav-item @(activeController == "Conversations" ? "active" : null)">
@@ -68,20 +72,17 @@
                 <button class="mobile-toggle" id="mobileToggle" type="button" aria-label="Open menu">
                     <iconify-icon icon="ph:list-duotone"></iconify-icon>
                 </button>
-                <div class="search-box">
-                    <iconify-icon icon="ph:magnifying-glass-duotone"></iconify-icon>
-                    <input type="search" placeholder="Search anything..." />
-                </div>
+                <p class="topbar-brand-title" aria-label="HRMS Agent Admin">HRMS Agent Admin</p>
             </div>
             <div class="topbar-right">
-                <button class="topbar-btn" type="button">
+                <button class="topbar-btn" type="button" aria-label="Notifications">
                     <iconify-icon icon="ph:bell-duotone"></iconify-icon>
                     <span class="notif-dot"></span>
                 </button>
-                <div class="user-chip">
-                    <div class="user-avatar">@initials</div>
+                <div class="user-chip" id="topbarUserChip">
+                    <div class="user-avatar" id="topbarUserAvatar">@initials</div>
                     <div class="user-info">
-                        <strong>@userName</strong>
+                        <strong id="topbarUserName">@userName</strong>
                         <span>Administrator</span>
                     </div>
                 </div>
@@ -94,6 +95,7 @@
     </div>
 
     <script src="~/js/admin-auth.js" asp-append-version="true"></script>
+    <script src="~/js/admin-loaders.js" asp-append-version="true"></script>
     <script src="~/js/admin.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

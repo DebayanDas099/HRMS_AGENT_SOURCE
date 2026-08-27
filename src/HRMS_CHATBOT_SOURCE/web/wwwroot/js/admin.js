@@ -12,8 +12,9 @@
 
     if (sidebarToggle && sidebar) {
         sidebarToggle.addEventListener('click', function () {
-            sidebar.classList.toggle('expanded');
-            document.body.classList.toggle('sidebar-expanded');
+            const isExpanded = sidebar.classList.toggle('expanded');
+            document.body.classList.toggle('sidebar-expanded', isExpanded);
+            sidebarToggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
         });
     }
 
@@ -49,6 +50,8 @@
 
     cards.forEach(function (card) { observer.observe(card); });
 
+    hydrateTopbarUser();
+
     const currentPath = window.location.pathname.toLowerCase().replace(/\/$/, '');
     document.querySelectorAll('.sidebar-nav .nav-item').forEach(function (link) {
         const href = (link.getAttribute('href') || '').toLowerCase().replace(/\/$/, '');
@@ -57,3 +60,50 @@
         }
     });
 })();
+
+function hydrateTopbarUser() {
+    const nameEl = document.getElementById('topbarUserName');
+    const avatarEl = document.getElementById('topbarUserAvatar');
+    if (!nameEl || !window.HrmsAdminAuth) {
+        return;
+    }
+
+    const currentName = (nameEl.textContent || '').trim();
+    if (currentName && currentName.toLowerCase() !== 'admin') {
+        return;
+    }
+
+    const token = window.HrmsAdminAuth.getToken();
+    if (!token) {
+        return;
+    }
+
+    try {
+        const payloadPart = token.split('.')[1];
+        if (!payloadPart) {
+            return;
+        }
+
+        const payload = JSON.parse(atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/')));
+        const userName = payload.UserName || payload.userName || payload.name;
+        if (!userName) {
+            return;
+        }
+
+        nameEl.textContent = userName;
+
+        if (avatarEl) {
+            const initials = userName
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map(function (part) { return part[0].toUpperCase(); })
+                .join('');
+
+            avatarEl.textContent = initials || userName.slice(0, 2).toUpperCase();
+        }
+    } catch (_) {
+        /* ignore malformed token */
+    }
+}

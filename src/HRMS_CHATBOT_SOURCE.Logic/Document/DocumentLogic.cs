@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using HRMS_CHATBOT_SOURCE.Domain.Constants;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
+using HRMS_CHATBOT_SOURCE.Domain.Helpers;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
 using HRMS_CHATBOT_SOURCE.Logic.Adapter;
 using HRMS_CHATBOT_SOURCE.Repo.Document;
@@ -174,6 +175,33 @@ public class DocumentLogic : IDocumentLogic
         }
 
         return await _documentIngestionPipeline.IngestAsync(documentId, cancellationToken);
+    }
+
+    public async Task<DocumentDownloadResult?> DownloadDocumentAsync(
+        long documentId,
+        CancellationToken cancellationToken = default)
+    {
+        if (documentId <= 0)
+        {
+            throw new ValidationException("Invalid document id.");
+        }
+
+        var response = await _documentRepo.GetByIdAsync(documentId, cancellationToken);
+        var document = DocumentAdapter.MapById(response);
+        if (document == null || string.IsNullOrWhiteSpace(document.Path))
+        {
+            throw new ValidationException("Document not found.");
+        }
+
+        var fileName = DocumentFileHelper.ExtractFileName(document.Path);
+        var fileContent = await _documentBlobService.DownloadAsync(document.Path, cancellationToken);
+
+        return new DocumentDownloadResult
+        {
+            FileName = fileName,
+            ContentType = DocumentFileHelper.ResolveMimeType(fileName),
+            FileContent = fileContent
+        };
     }
 
     private static void ValidateTitle(string? title)
