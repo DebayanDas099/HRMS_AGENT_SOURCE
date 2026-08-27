@@ -13,15 +13,59 @@
     <title>@ViewData["Title"] - HRMS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <link rel="stylesheet" href="~/css/admin-login.css" asp-append-version="true" />
 </head>
 <body class="login-body">
-    <div class="login-bg-shapes">
-        <div class="shape shape-1"></div>
-        <div class="shape shape-2"></div>
-        <div class="shape shape-3"></div>
+    <div class="login-bg-shapes" aria-hidden="true">
+        <div class="login-bg-dots"></div>
+        <svg class="login-bg-svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="ribbonTR" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#a855f7" />
+                    <stop offset="55%" stop-color="#c026d3" />
+                    <stop offset="100%" stop-color="#ec4899" />
+                </linearGradient>
+                <linearGradient id="ribbonTRsoft" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ddd6fe" />
+                    <stop offset="100%" stop-color="#fbcfe8" />
+                </linearGradient>
+                <linearGradient id="ribbonBL" x1="100%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#c084fc" />
+                    <stop offset="50%" stop-color="#a855f7" />
+                    <stop offset="100%" stop-color="#7c3aed" />
+                </linearGradient>
+                <linearGradient id="ribbonBLsoft" x1="100%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#f5d0fe" />
+                    <stop offset="100%" stop-color="#ddd6fe" />
+                </linearGradient>
+                <linearGradient id="ribbonTL" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#8b5cf6" />
+                    <stop offset="100%" stop-color="#c4b5fd" />
+                </linearGradient>
+                <filter id="blobBlur" x="-60%" y="-60%" width="220%" height="220%">
+                    <feGaussianBlur stdDeviation="22" />
+                </filter>
+            </defs>
+
+            <!-- top-left corner wave + blurred orb -->
+            <path fill="url(#ribbonTL)" opacity="0.9" d="M-60,-80 C120,-40 220,-10 240,60 C255,120 160,150 60,120 C-30,95 -90,20 -60,-80 Z" />
+            <circle cx="120" cy="168" r="52" fill="#a78bfa" opacity="0.55" filter="url(#blobBlur)" />
+
+            <!-- top-right flowing ribbon -->
+            <path fill="url(#ribbonTRsoft)" opacity="0.65" d="M900,-60 C1080,40 1180,20 1300,90 C1420,160 1480,120 1520,60 L1520,-100 L900,-100 Z" />
+            <path fill="url(#ribbonTR)" opacity="0.92" d="M1010,-80 C1120,10 1240,-10 1330,60 C1430,140 1490,90 1520,20 L1520,-120 L1010,-120 Z" />
+            <path fill="url(#ribbonTR)" opacity="0.5" d="M1180,-40 C1280,60 1380,60 1470,140 C1520,185 1530,220 1520,260 L1520,-40 Z" />
+
+            <!-- bottom-left flowing ribbon -->
+            <path fill="url(#ribbonBLsoft)" opacity="0.7" d="M-80,660 C60,600 180,650 280,740 C370,820 260,920 100,940 L-80,940 Z" />
+            <path fill="url(#ribbonBL)" opacity="0.9" d="M-80,760 C40,700 150,730 230,810 C300,880 220,950 60,960 L-80,960 Z" />
+
+            <!-- bottom-right blurred orb + small pink wave -->
+            <circle cx="1312" cy="756" r="46" fill="#f472b6" opacity="0.6" filter="url(#blobBlur)" />
+            <path fill="url(#ribbonTR)" opacity="0.35" d="M1380,940 C1400,860 1470,830 1530,850 L1530,960 L1380,960 Z" />
+        </svg>
     </div>
 
     <div class="login-card animate-in">
@@ -29,15 +73,42 @@
             <div class="brand-overlay"></div>
             <div class="brand-content">
                 <div class="brand-logo">
-                    <iconify-icon icon="ph:robot-duotone" class="brand-icon"></iconify-icon>
+                    <span class="brand-logo-badge">
+                        <iconify-icon icon="ph:robot"></iconify-icon>
+                    </span>
                     <span>HRMS Chatbot</span>
                 </div>
 
                 <div class="brand-visual">
-                    <div class="floating-orbit orbit-1"></div>
-                    <div class="floating-orbit orbit-2"></div>
-                    <div class="brand-hero-icon">
-                        <iconify-icon icon="ph:sparkle-duotone"></iconify-icon>
+                    <div class="orbit-ring ring-1"></div>
+                    <div class="orbit-ring ring-2"></div>
+                    <div class="orbit-glow"></div>
+
+                    <span class="orbit-dot dot-1"></span>
+                    <span class="orbit-dot dot-2"></span>
+                    <span class="orbit-star star-1">✦</span>
+                    <span class="orbit-star star-2">✧</span>
+
+                    <div class="brand-bubble-icon bubble-chart">
+                        <iconify-icon icon="ph:chart-bar"></iconify-icon>
+                    </div>
+                    <div class="brand-bubble-icon bubble-user">
+                        <iconify-icon icon="ph:user"></iconify-icon>
+                    </div>
+                    <div class="brand-bubble-icon bubble-pie">
+                        <iconify-icon icon="ph:chart-pie-slice"></iconify-icon>
+                    </div>
+
+                    <div class="brand-mini-card">
+                        <span class="mini-avatar">
+                            <iconify-icon icon="ph:user"></iconify-icon>
+                        </span>
+                        <span class="mini-lines"><i></i><i></i><i></i></span>
+                    </div>
+
+                    <div class="brand-hero">
+                        <iconify-icon class="hero-bubble" icon="ph:chat-centered-text"></iconify-icon>
+                        <iconify-icon class="hero-robot" icon="ph:robot"></iconify-icon>
                     </div>
                 </div>
 
@@ -51,8 +122,8 @@
         <div class="login-form-panel">
             <div class="form-wrapper">
                 <div class="form-header">
-                    <h1>Login to your account</h1>
-                    <p>Enter your credentials to access the admin dashboard.</p>
+                    <h1>Welcome back</h1>
+                    <p>Sign in to continue to your dashboard</p>
                 </div>
 
                 <form id="loginForm"
@@ -61,29 +132,29 @@
                       data-login-url="@Url.Action("ValidateLogin", "Account", new { area = "Admin" })">
                     <input type="hidden" id="returnUrl" value="@returnUrl" />
                     <div id="loginError" class="validation-summary" style="display:none;"></div>
-                @if (!string.IsNullOrWhiteSpace(ViewData["ErrorMessage"] as string))
-                {
-                    <div class="validation-summary">@ViewData["ErrorMessage"]</div>
-                }
+                    @if (!string.IsNullOrWhiteSpace(ViewData["ErrorMessage"] as string))
+                    {
+                        <div class="validation-summary">@ViewData["ErrorMessage"]</div>
+                    }
 
                     <div class="form-group">
-                        <label for="userIdInput">User ID <span class="required">*</span></label>
+                        <label for="userIdInput">User ID</label>
                         <div class="input-wrap">
-                            <iconify-icon icon="ph:user-circle-duotone" class="input-icon"></iconify-icon>
+                            <iconify-icon icon="ph:user-circle" class="input-icon"></iconify-icon>
                             <input type="text"
                                    id="userIdInput"
                                    name="user_id"
                                    class="form-control"
-                                   placeholder="Enter your user ID"
+                                   placeholder="admin"
                                    autocomplete="username"
                                    value="@Model.UserId" />
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="passwordInput">Password <span class="required">*</span></label>
+                        <label for="passwordInput">Password</label>
                         <div class="input-wrap">
-                            <iconify-icon icon="ph:lock-key-duotone" class="input-icon"></iconify-icon>
+                            <iconify-icon icon="ph:lock-simple" class="input-icon"></iconify-icon>
                             <input type="password"
                                    id="passwordInput"
                                    name="password"
@@ -91,7 +162,7 @@
                                    placeholder="Enter your password"
                                    autocomplete="current-password" />
                             <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility">
-                                <iconify-icon icon="ph:eye-duotone" id="eyeIcon"></iconify-icon>
+                                <iconify-icon icon="ph:eye" id="eyeIcon"></iconify-icon>
                             </button>
                         </div>
                     </div>
@@ -102,13 +173,22 @@
                             <span class="checkmark"></span>
                             Remember me
                         </label>
+                        <a class="forgot-password" href="#" onclick="return false;">Forgot password?</a>
                     </div>
 
-                    <button type="button" class="btn-gradient btn-login" id="loginBtn" aria-busy="false">
-                        <span>Login</span>
-                        <iconify-icon icon="ph:arrow-right-duotone"></iconify-icon>
+                    <button type="submit" class="btn-gradient btn-login" id="loginBtn" aria-busy="false">
+                        <span class="btn-spinner" aria-hidden="true"></span>
+                        <iconify-icon icon="ph:sign-in" class="btn-icon"></iconify-icon>
+                        <span class="btn-label">Sign In</span>
                     </button>
                 </form>
+
+                <div class="login-secure-note">
+                    <span class="secure-badge">
+                        <iconify-icon icon="ph:shield-check"></iconify-icon>
+                    </span>
+                    <span>Secure access</span>
+                </div>
             </div>
         </div>
     </div>

@@ -3,60 +3,72 @@
     Layout = "_AdminLayout";
 }
 
-<div class="dashboard-header animate-up">
-    <div>
+<div class="page-hero animate-up">
+    <div class="page-hero-content">
         <p class="dashboard-greeting">Chat history</p>
-        <h1 class="dashboard-title">Conversations</h1>
-        <p class="dashboard-subtitle">Review employee chatbot sessions, queries, and responses.</p>
+        <h1 class="page-hero-title"><span>Conversations</span></h1>
+        <p class="page-hero-subtitle">Review employee chatbot sessions, queries, and responses.</p>
     </div>
-    <div class="header-actions">
-        <button class="btn-gradient btn-sm" type="button">
-            <iconify-icon icon="ph:export-duotone"></iconify-icon>
-            <span>Export</span>
-        </button>
+    <div class="page-hero-art" aria-hidden="true">
+        <div class="hero-cloud hero-cloud-1"></div>
+        <div class="hero-folder">
+            <iconify-icon icon="ph:chats-circle-duotone"></iconify-icon>
+        </div>
     </div>
 </div>
 
 <div class="stats-grid animate-up delay-1">
     <div class="stat-card">
-        <div class="stat-icon purple">
-            <iconify-icon icon="ph:chat-circle-dots-duotone"></iconify-icon>
+        <div class="stat-card-body">
+            <div class="stat-icon purple">
+                <iconify-icon icon="ph:chat-circle-dots-duotone"></iconify-icon>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Total Sessions</span>
+                <span class="stat-value">0</span>
+                <span class="stat-change positive">All time</span>
+            </div>
         </div>
-        <div class="stat-info">
-            <span class="stat-label">Total Sessions</span>
-            <span class="stat-value">0</span>
-            <span class="stat-change positive">All time</span>
-        </div>
+        <svg class="stat-wave purple" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 30 C45 10 95 50 150 28 S255 8 300 32 V54 H0 Z" fill="currentColor"/></svg>
     </div>
     <div class="stat-card">
-        <div class="stat-icon blue">
-            <iconify-icon icon="ph:calendar-duotone"></iconify-icon>
+        <div class="stat-card-body">
+            <div class="stat-icon blue">
+                <iconify-icon icon="ph:calendar-duotone"></iconify-icon>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Today</span>
+                <span class="stat-value">0</span>
+                <span class="stat-change positive">New sessions</span>
+            </div>
         </div>
-        <div class="stat-info">
-            <span class="stat-label">Today</span>
-            <span class="stat-value">0</span>
-            <span class="stat-change positive">New sessions</span>
-        </div>
+        <svg class="stat-wave blue" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 26 C60 46 110 12 160 30 S240 48 300 22 V54 H0 Z" fill="currentColor"/></svg>
     </div>
     <div class="stat-card">
-        <div class="stat-icon teal">
-            <iconify-icon icon="ph:check-circle-duotone"></iconify-icon>
+        <div class="stat-card-body">
+            <div class="stat-icon teal">
+                <iconify-icon icon="ph:check-circle-duotone"></iconify-icon>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Resolved</span>
+                <span class="stat-value">0</span>
+                <span class="stat-change positive">Completed chats</span>
+            </div>
         </div>
-        <div class="stat-info">
-            <span class="stat-label">Resolved</span>
-            <span class="stat-value">0</span>
-            <span class="stat-change positive">Completed chats</span>
-        </div>
+        <svg class="stat-wave teal" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 34 C55 14 105 44 155 26 S250 10 300 36 V54 H0 Z" fill="currentColor"/></svg>
     </div>
     <div class="stat-card">
-        <div class="stat-icon pink">
-            <iconify-icon icon="ph:timer-duotone"></iconify-icon>
+        <div class="stat-card-body">
+            <div class="stat-icon pink">
+                <iconify-icon icon="ph:timer-duotone"></iconify-icon>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Avg Duration</span>
+                <span class="stat-value">—</span>
+                <span class="stat-change positive">Per session</span>
+            </div>
         </div>
-        <div class="stat-info">
-            <span class="stat-label">Avg Duration</span>
-            <span class="stat-value">—</span>
-            <span class="stat-change positive">Per session</span>
-        </div>
+        <svg class="stat-wave pink" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 28 C50 48 100 16 150 34 S230 12 300 30 V54 H0 Z" fill="currentColor"/></svg>
     </div>
 </div>
 

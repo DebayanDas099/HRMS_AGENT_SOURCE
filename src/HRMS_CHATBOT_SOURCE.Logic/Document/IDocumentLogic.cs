@@ -24,4 +24,6 @@ public interface IDocumentLogic
     Task<DocumentMstrDto?> UpdateActiveAsync(long documentId, bool isActive, CancellationToken cancellationToken = default);
 
     Task<IngestionResultDto?> IngestDocumentAsync(long documentId, CancellationToken cancellationToken = default);
+
+    Task<DocumentDownloadResult?> DownloadDocumentAsync(long documentId, CancellationToken cancellationToken = default);
 }
