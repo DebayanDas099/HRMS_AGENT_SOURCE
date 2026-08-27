@@ -2,13 +2,23 @@
     'use strict';
 
     const PAGE_SIZE = 10;
+    const TABLE_COLUMN_COUNT = 7;
+
+    const loaders = window.AdminLoaders || {
+        setGridLoading: function () {},
+        setComponentLoading: function () {},
+        renderTableSkeleton: function () {},
+        setButtonLoading: function () {},
+        runWithButtonLoading: function (_btn, task) { return Promise.resolve().then(task); }
+    };
 
     const endpoints = {
         statistics: '/Admin/DocumentRepository/GetStatistics',
         list: '/Admin/DocumentRepository/GetList',
         bulkUpload: '/Admin/DocumentRepository/BulkUpload',
         updateActive: '/Admin/DocumentRepository/UpdateActive',
-        ingestDocument: '/Admin/DocumentRepository/IngestDocument'
+        ingestDocument: '/Admin/DocumentRepository/IngestDocument',
+        downloadDocument: '/Admin/DocumentRepository/Download'
     };
 
     const elements = {
@@ -23,7 +33,6 @@
         docTableSubtitle: document.getElementById('docTableSubtitle'),
         bulkUploadBtn: document.getElementById('bulkUploadBtn'),
         startIngestionBtn: document.getElementById('startIngestionBtn'),
-        selectAllDocuments: document.getElementById('selectAllDocuments'),
         bulkFileInput: document.getElementById('bulkFileInput'),
         ingestionProgressPanel: document.getElementById('ingestionProgressPanel'),
         ingestionProgressTitle: document.getElementById('ingestionProgressTitle'),
@@ -50,7 +59,9 @@
         uploadModalSubtitle: document.getElementById('uploadModalSubtitle'),
         closeUploadModal: document.getElementById('closeUploadModal'),
         cancelUploadModal: document.getElementById('cancelUploadModal'),
-        confirmUploadModal: document.getElementById('confirmUploadModal')
+        confirmUploadModal: document.getElementById('confirmUploadModal'),
+        docStatsGrid: document.getElementById('docStatsGrid'),
+        docTablePanel: document.getElementById('docTablePanel')
     };
 
     let searchTimer = null;
@@ -77,6 +88,15 @@
         }
     };
 
+    const INGESTIBLE_EXTENSIONS = new Set([
+        '.pdf', '.doc', '.docx', '.txt', '.ppt', '.pptx', '.xls', '.xlsx', '.csv', '.md'
+    ]);
+
+    const MEDIA_EXTENSIONS = new Set([
+        '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg',
+        '.mp4', '.mov', '.avi', '.wmv', '.mkv', '.webm', '.m4v', '.mpeg', '.mpg'
+    ]);
+
     function init() {
         if (!elements.documentsTableBody) {
             return;
@@ -95,16 +115,6 @@
             void startSelectedIngestion();
         });
 
-        elements.selectAllDocuments?.addEventListener('change', function () {
-            const checked = elements.selectAllDocuments.checked;
-            elements.documentsTableBody?.querySelectorAll('.doc-select-checkbox').forEach(function (input) {
-                if (!input.disabled) {
-                    input.checked = checked;
-                }
-            });
-            updateIngestionButtonState();
-        });
-
         elements.bulkFileInput?.addEventListener('change', function () {
             if (elements.bulkFileInput.files?.length) {
                 openUploadModal(Array.from(elements.bulkFileInput.files));
@@ -117,7 +127,9 @@
             });
         });
 
-        elements.refreshDocumentsBtn?.addEventListener('click', refreshPage);
+        elements.refreshDocumentsBtn?.addEventListener('click', function () {
+            void refreshPage(elements.refreshDocumentsBtn);
+        });
 
         elements.documentSearch?.addEventListener('input', function () {
             window.clearTimeout(searchTimer);
@@ -184,11 +196,23 @@
         refreshDocuments();
     }
 
-    async function refreshPage() {
-        await Promise.all([loadStatistics(), refreshDocuments()]);
+    async function refreshPage(triggerButton) {
+        if (triggerButton) {
+            loaders.setButtonLoading(triggerButton, true);
+        }
+
+        try {
+            await Promise.all([loadStatistics(), refreshDocuments()]);
+        } finally {
+            if (triggerButton) {
+                loaders.setButtonLoading(triggerButton, false);
+            }
+        }
     }
 
     async function loadStatistics() {
+        loaders.setGridLoading(elements.docStatsGrid, true, 'Fetching statistics...');
+
         try {
             const response = await fetch(endpoints.statistics, {
                 headers: { Accept: 'application/json' }
@@ -213,6 +237,8 @@
             if (elements.status) {
                 elements.status.textContent = error.message || 'Unable to load statistics.';
             }
+        } finally {
+            loaders.setGridLoading(elements.docStatsGrid, false);
         }
     }
 
@@ -228,6 +254,9 @@
         if (searchText) {
             params.set('search_text', searchText);
         }
+
+        loaders.setComponentLoading(elements.docTablePanel, true, 'Loading documents...');
+        loaders.renderTableSkeleton(elements.documentsTableBody, TABLE_COLUMN_COUNT, 5);
 
         try {
             const response = await fetch(`${endpoints.list}?${params.toString()}`, {
@@ -255,7 +284,119 @@
             if (elements.status) {
                 elements.status.textContent = error.message || 'Unable to load documents.';
             }
+        } finally {
+            loaders.setComponentLoading(elements.docTablePanel, false);
         }
+    }
+
+    function getInitials(name) {
+        if (!name) {
+            return '?';
+        }
+
+        return name
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map(function (part) { return part[0].toUpperCase(); })
+            .join('');
+    }
+
+    function getFileExtension(doc) {
+        const source = String(doc.dm_path || doc.dm_name || '').trim();
+        const fileName = source.replace(/\\/g, '/').split('/').pop() || source;
+        const dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex <= 0) {
+            return '';
+        }
+
+        return fileName.slice(dotIndex).toLowerCase();
+    }
+
+    function isIngestibleDocument(doc) {
+        const extension = getFileExtension(doc);
+        if (!extension) {
+            return false;
+        }
+
+        if (MEDIA_EXTENSIONS.has(extension)) {
+            return false;
+        }
+
+        return INGESTIBLE_EXTENSIONS.has(extension);
+    }
+
+    function formatDateTime(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return '—';
+        }
+
+        const pad = function (part) { return String(part).padStart(2, '0'); };
+        const day = pad(date.getDate());
+        const month = pad(date.getMonth() + 1);
+        const year = date.getFullYear();
+        let hours = date.getHours();
+        const meridiem = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        if (hours === 0) {
+            hours = 12;
+        }
+
+        return `${day}/${month}/${year} ${pad(hours)}:${pad(date.getMinutes())} ${meridiem}`;
+    }
+
+    function getStatusButtonMeta(isActive) {
+        return isActive
+            ? {
+                className: 'is-active',
+                title: 'Deactivate document',
+                ariaLabel: 'Document is active. Click to deactivate.',
+                icon: 'ph:check-circle-duotone'
+            }
+            : {
+                className: 'is-inactive',
+                title: 'Activate document',
+                ariaLabel: 'Document is inactive. Click to activate.',
+                icon: 'ph:prohibit-duotone'
+            };
+    }
+
+    function renderStatusButton(documentId, isActive) {
+        const meta = getStatusButtonMeta(isActive);
+        return `
+            <button type="button" class="doc-action-btn doc-status-btn ${meta.className}" data-document-id="${documentId}" data-is-active="${isActive ? 'true' : 'false'}" title="${meta.title}" aria-label="${meta.ariaLabel}">
+                <iconify-icon icon="${meta.icon}"></iconify-icon>
+            </button>`;
+    }
+
+    function updateStatusButtonAppearance(button, isActive) {
+        const meta = getStatusButtonMeta(isActive);
+        button.setAttribute('data-is-active', isActive ? 'true' : 'false');
+        button.classList.toggle('is-active', isActive);
+        button.classList.toggle('is-inactive', !isActive);
+        button.title = meta.title;
+        button.setAttribute('aria-label', meta.ariaLabel);
+
+        const icon = button.querySelector('iconify-icon');
+        if (icon) {
+            icon.setAttribute('icon', meta.icon);
+        }
+    }
+
+    function renderIngestSelectCell(doc, isActive, ingestionStatus) {
+        if (!isIngestibleDocument(doc)) {
+            return '<td class="doc-ingest-col"><span class="doc-ingest-na">—</span></td>';
+        }
+
+        const canSelect = isActive && ingestionStatus.toLowerCase() !== 'processing';
+        return `
+            <td class="doc-ingest-col">
+                <label class="doc-toggle" title="Select for ingestion">
+                    <input type="checkbox" class="doc-ingest-toggle" data-select-id="${doc.dm_id}" ${canSelect ? '' : 'disabled'} />
+                    <span class="doc-toggle-slider"></span>
+                </label>
+            </td>`;
     }
 
     function renderDocuments(documents, totalCount, currentPage) {
@@ -269,7 +410,7 @@
 
             elements.documentsTableBody.innerHTML = `
                 <tr class="doc-empty-row">
-                    <td colspan="9">
+                    <td colspan="7">
                         <div class="empty-state compact">
                             <div class="empty-state-icon">
                                 <iconify-icon icon="ph:folder-open-duotone"></iconify-icon>
@@ -287,59 +428,67 @@
             const isActive = String(doc.dm_active || '').toUpperCase() === 'Y';
             const ingestionStatus = (doc.dm_ingestion_status || 'Pending').trim();
             const ingestionClass = getIngestionStatusClass(ingestionStatus);
-            const canSelect = isActive && ingestionStatus.toLowerCase() !== 'processing';
+            const isProcessing = ingestionStatus.toLowerCase() === 'processing';
             const createdDate = doc.dm_created_date
-                ? new Date(doc.dm_created_date).toLocaleString()
+                ? formatDateTime(doc.dm_created_date)
                 : '—';
+
+            const createdBy = doc.dm_created_by || '—';
+            const createdInitials = getInitials(createdBy);
 
             return `
                 <tr data-document-row="${doc.dm_id}">
-                    <td class="doc-select-col">
-                        <label class="doc-select-checkbox-wrap" title="Select for ingestion">
-                            <input type="checkbox" class="doc-select-checkbox" data-select-id="${doc.dm_id}" ${canSelect ? '' : 'disabled'} />
-                        </label>
-                    </td>
-                    <td>
-                        <label class="doc-toggle">
-                            <input type="checkbox" class="doc-active-toggle" data-document-id="${doc.dm_id}" ${isActive ? 'checked' : ''} />
-                            <span class="doc-toggle-slider"></span>
-                        </label>
-                    </td>
-                    <td><span class="doc-id-badge">${doc.dm_id}</span></td>
-                    <td>${escapeHtml(doc.dm_name || '—')}</td>
+                    ${renderIngestSelectCell(doc, isActive, ingestionStatus)}
+                    <td class="doc-title-cell" title="${escapeHtml(doc.dm_name || '')}">${escapeHtml(doc.dm_name || '—')}</td>
                     <td><span class="doc-category-badge ${categoryClass}">${escapeHtml(doc.dm_category || '—')}</span></td>
                     <td class="doc-ingestion-cell">
                         <div class="doc-ingestion-status">
                             <span class="doc-ingestion-badge ${ingestionClass}" data-ingestion-badge="${doc.dm_id}">${escapeHtml(ingestionStatus)}</span>
-                            ${doc.dm_chunk_count ? `<span class="doc-chunk-count">${doc.dm_chunk_count} chunks</span>` : ''}
                         </div>
-                        <div class="doc-ingest-progress" data-ingest-progress="${doc.dm_id}" hidden>
+                        <div class="doc-ingestion-stats" data-ingestion-stats="${doc.dm_id}">
+                            ${renderIngestionStatsHtml(doc, ingestionStatus)}
+                        </div>
+                        <div class="doc-ingest-progress" data-ingest-progress="${doc.dm_id}"${isProcessing ? '' : ' hidden'}>
                             <div class="doc-ingest-progress-bar">
                                 <div class="doc-ingest-progress-fill" data-ingest-fill="${doc.dm_id}"></div>
                             </div>
-                            <span class="doc-ingest-progress-text" data-ingest-text="${doc.dm_id}">0%</span>
+                            <span class="doc-ingest-progress-text" data-ingest-text="${doc.dm_id}">${isProcessing ? 'Processing...' : '0%'}</span>
                         </div>
                         ${doc.dm_ingestion_error ? `<span class="doc-ingestion-error" title="${escapeHtml(doc.dm_ingestion_error)}">${escapeHtml(doc.dm_ingestion_error)}</span>` : ''}
                     </td>
-                    <td><span class="doc-path" title="${escapeHtml(doc.dm_path || '')}">${escapeHtml(doc.dm_path || '—')}</span></td>
-                    <td>${escapeHtml(doc.dm_created_by || '—')}</td>
-                    <td>${createdDate}</td>
+                    <td>
+                        <span class="user-pill">
+                            <span class="user-pill-avatar">${escapeHtml(createdInitials)}</span>
+                            <span class="user-pill-name">${escapeHtml(createdBy)}</span>
+                        </span>
+                    </td>
+                    <td class="doc-date-cell" title="${escapeHtml(createdDate)}">${escapeHtml(createdDate)}</td>
+                    <td class="doc-actions-col">
+                        <div class="doc-row-actions">
+                            <button type="button" class="doc-action-btn doc-download-btn" data-document-id="${doc.dm_id}" data-file-name="${escapeHtml(getDownloadFileName(doc))}" title="Download document" aria-label="Download document">
+                                <iconify-icon icon="ph:download-simple-duotone"></iconify-icon>
+                            </button>
+                            ${renderStatusButton(doc.dm_id, isActive)}
+                        </div>
+                    </td>
                 </tr>`;
         }).join('');
 
-        elements.documentsTableBody.querySelectorAll('.doc-active-toggle').forEach(function (input) {
-            input.addEventListener('change', function () {
-                void toggleActive(input);
+        elements.documentsTableBody.querySelectorAll('.doc-status-btn').forEach(function (button) {
+            button.addEventListener('click', function () {
+                void toggleActiveButton(button);
             });
         });
 
-        elements.documentsTableBody.querySelectorAll('.doc-select-checkbox').forEach(function (input) {
-            input.addEventListener('change', updateIngestionButtonState);
+        elements.documentsTableBody.querySelectorAll('.doc-download-btn').forEach(function (button) {
+            button.addEventListener('click', function () {
+                void downloadDocument(button);
+            });
         });
 
-        if (elements.selectAllDocuments) {
-            elements.selectAllDocuments.checked = false;
-        }
+        elements.documentsTableBody.querySelectorAll('.doc-ingest-toggle').forEach(function (input) {
+            input.addEventListener('change', updateIngestionButtonState);
+        });
 
         updateIngestionButtonState();
     }
@@ -348,19 +497,57 @@
         switch ((status || '').toLowerCase()) {
             case 'completed':
                 return 'completed';
-            case 'processing':
-                return 'processing';
             case 'failed':
                 return 'failed';
-            case 'skipped':
-                return 'skipped';
             default:
                 return 'pending';
         }
     }
 
+    function renderIngestionStatsHtml(doc, ingestionStatus) {
+        const status = (ingestionStatus || 'Pending').toLowerCase();
+        const chunkCount = Number(doc.dm_chunk_count) || 0;
+        const ingestedAt = doc.dm_ingested_at ? formatDateTime(doc.dm_ingested_at) : null;
+
+        if (status === 'processing') {
+            return '<span class="doc-ingestion-stat">Preparing chunks and embeddings...</span>';
+        }
+
+        if (status === 'completed') {
+            if (chunkCount > 0) {
+                return `<span class="doc-ingestion-stat"><strong>${chunkCount}</strong> chunk${chunkCount === 1 ? '' : 's'} indexed${ingestedAt ? ` · ${escapeHtml(ingestedAt)}` : ''}</span>`;
+            }
+
+            return '<span class="doc-ingestion-stat">Indexed successfully</span>';
+        }
+
+        if (status === 'failed') {
+            return chunkCount > 0
+                ? `<span class="doc-ingestion-stat">${chunkCount} chunk${chunkCount === 1 ? '' : 's'} before failure</span>`
+                : '<span class="doc-ingestion-stat muted">Ingestion failed</span>';
+        }
+
+        if (status === 'skipped') {
+            return '<span class="doc-ingestion-stat muted">Ingestion skipped</span>';
+        }
+
+        return '<span class="doc-ingestion-stat muted">Awaiting ingestion</span>';
+    }
+
+    function updateIngestionStatsCell(documentId, status, chunkCount, ingestedAt) {
+        const statsEl = document.querySelector(`[data-ingestion-stats="${documentId}"]`);
+        if (!statsEl) {
+            return;
+        }
+
+        statsEl.innerHTML = renderIngestionStatsHtml({
+            dm_chunk_count: chunkCount,
+            dm_ingested_at: ingestedAt
+        }, status);
+    }
+
     function getSelectedDocumentIds() {
-        return Array.from(elements.documentsTableBody?.querySelectorAll('.doc-select-checkbox:checked') || [])
+        return Array.from(elements.documentsTableBody?.querySelectorAll('.doc-ingest-toggle:checked') || [])
             .map(function (input) { return Number(input.getAttribute('data-select-id')); })
             .filter(function (id) { return id > 0; });
     }
@@ -397,34 +584,67 @@
 
         if (badge && showBar) {
             badge.textContent = 'Processing';
-            badge.className = 'doc-ingestion-badge processing';
+            badge.className = 'doc-ingestion-badge pending';
         }
+
+        updateIngestionStatsCell(documentId, 'Processing', null, null);
     }
 
-    function setRowIngestionResult(documentId, status, errorMessage) {
+    function setRowIngestionResult(documentId, status, errorMessage, chunkCount, vectorCount) {
         const progressWrap = document.querySelector(`[data-ingest-progress="${documentId}"]`);
         const progressFill = document.querySelector(`[data-ingest-fill="${documentId}"]`);
         const progressText = document.querySelector(`[data-ingest-text="${documentId}"]`);
         const badge = document.querySelector(`[data-ingestion-badge="${documentId}"]`);
         const statusClass = getIngestionStatusClass(status);
-        const isSuccess = statusClass === 'completed';
 
         if (progressWrap) {
-            progressWrap.hidden = false;
+            progressWrap.hidden = true;
         }
 
         if (progressFill) {
-            progressFill.style.width = isSuccess ? '100%' : '100%';
-            progressFill.classList.toggle('failed', statusClass === 'failed');
+            progressFill.style.width = '0%';
+            progressFill.classList.remove('failed');
         }
 
         if (progressText) {
-            progressText.textContent = isSuccess ? '100%' : (errorMessage || status);
+            progressText.textContent = '0%';
         }
 
         if (badge) {
             badge.textContent = status;
             badge.className = `doc-ingestion-badge ${statusClass}`;
+        }
+
+        const resolvedChunkCount = Number(chunkCount) || 0;
+        const normalizedStatus = String(status).toLowerCase();
+
+        if (normalizedStatus === 'completed' && resolvedChunkCount > 0) {
+            const vectorSuffix = Number(vectorCount) > 0
+                ? ` · <strong>${vectorCount}</strong> vector${Number(vectorCount) === 1 ? '' : 's'} stored`
+                : '';
+            const ingestedLabel = formatDateTime(new Date().toISOString());
+            const statsEl = document.querySelector(`[data-ingestion-stats="${documentId}"]`);
+            if (statsEl) {
+                statsEl.innerHTML = `<span class="doc-ingestion-stat"><strong>${resolvedChunkCount}</strong> chunk${resolvedChunkCount === 1 ? '' : 's'} indexed${vectorSuffix} · ${escapeHtml(ingestedLabel)}</span>`;
+            }
+        } else {
+            updateIngestionStatsCell(documentId, status, resolvedChunkCount, new Date().toISOString());
+        }
+
+        if (errorMessage) {
+            const row = document.querySelector(`[data-document-row="${documentId}"]`);
+            const cell = row?.querySelector('.doc-ingestion-cell');
+            let errorEl = cell?.querySelector('.doc-ingestion-error');
+            if (cell && !errorEl) {
+                errorEl = document.createElement('span');
+                errorEl.className = 'doc-ingestion-error';
+                cell.appendChild(errorEl);
+            }
+
+            if (errorEl) {
+                errorEl.title = errorMessage;
+                errorEl.textContent = errorMessage;
+            }
         }
     }
 
@@ -435,6 +655,7 @@
         }
 
         isIngesting = true;
+        loaders.setButtonLoading(elements.startIngestionBtn, true);
         updateIngestionButtonState();
 
         let completed = 0;
@@ -444,10 +665,10 @@
         showIngestionProgress(0, documentIds.length, 'Starting ingestion...');
 
         for (const documentId of documentIds) {
-            const selectCheckbox = document.querySelector(`.doc-select-checkbox[data-select-id="${documentId}"]`);
-            if (selectCheckbox) {
-                selectCheckbox.checked = false;
-                selectCheckbox.disabled = true;
+            const ingestToggle = document.querySelector(`.doc-ingest-toggle[data-select-id="${documentId}"]`);
+            if (ingestToggle) {
+                ingestToggle.checked = false;
+                ingestToggle.disabled = true;
             }
 
             setRowIngestionProgress(documentId, 5, 'Starting...', true);
@@ -476,19 +697,21 @@
                 }
 
                 const status = data.status || 'Completed';
+                const chunkCount = data.chunk_count ?? 0;
+                const vectorCount = data.vector_count ?? 0;
                 if (String(status).toLowerCase() === 'completed') {
                     successCount++;
-                    setRowIngestionResult(documentId, status, null);
+                    setRowIngestionResult(documentId, status, null, chunkCount, vectorCount);
                 } else if (String(status).toLowerCase() === 'skipped') {
-                    setRowIngestionResult(documentId, status, data.error_message);
+                    setRowIngestionResult(documentId, status, data.error_message, chunkCount, vectorCount);
                 } else {
                     failedCount++;
-                    setRowIngestionResult(documentId, status, data.error_message || 'Ingestion failed.');
+                    setRowIngestionResult(documentId, status, data.error_message || 'Ingestion failed.', chunkCount, vectorCount);
                 }
             } catch (error) {
                 window.clearInterval(progressTimer);
                 failedCount++;
-                setRowIngestionResult(documentId, 'Failed', error.message || 'Ingestion failed.');
+                setRowIngestionResult(documentId, 'Failed', error.message || 'Ingestion failed.', 0, 0);
             }
 
             completed++;
@@ -508,8 +731,9 @@
         }
 
         isIngesting = false;
+        loaders.setButtonLoading(elements.startIngestionBtn, false);
         updateIngestionButtonState();
-        await refreshDocuments();
+        await refreshPage();
 
         window.setTimeout(function () {
             if (elements.ingestionProgressPanel) {
@@ -560,7 +784,7 @@
         const end = start + pageItemCount - 1;
 
         if (elements.paginationInfo) {
-            elements.paginationInfo.textContent = `Showing ${start}-${end} of ${totalCount}`;
+            elements.paginationInfo.textContent = `Showing ${start} to ${end} of ${totalCount} documents`;
         }
 
         if (elements.prevPageBtn) {
@@ -700,13 +924,82 @@
         }
 
         const items = pendingUploadItems.slice();
-        closeUploadModal();
-        await uploadFiles(items);
+        loaders.setButtonLoading(elements.confirmUploadModal, true);
+
+        try {
+            closeUploadModal();
+            await uploadFiles(items);
+        } finally {
+            loaders.setButtonLoading(elements.confirmUploadModal, false);
+        }
     }
 
-    async function toggleActive(input) {
-        const documentId = Number(input.getAttribute('data-document-id'));
-        const isActive = input.checked;
+    function getDownloadFileName(doc) {
+        const path = String(doc.dm_path || '').trim();
+        if (path) {
+            const blobName = path.replace(/\\/g, '/').split('/').pop() || path;
+            const underscoreIndex = blobName.indexOf('_');
+            if (underscoreIndex >= 0 && underscoreIndex < blobName.length - 1) {
+                return blobName.slice(underscoreIndex + 1);
+            }
+
+            return blobName;
+        }
+
+        return doc.dm_name || 'document';
+    }
+
+    async function downloadDocument(button) {
+        const documentId = Number(button.getAttribute('data-document-id'));
+        const fallbackName = button.getAttribute('data-file-name') || 'document';
+        if (!documentId) {
+            return;
+        }
+
+        button.disabled = true;
+        loaders.setButtonLoading(button, true);
+
+        try {
+            const response = await fetch(`${endpoints.downloadDocument}?document_id=${documentId}`);
+            if (!response.ok) {
+                let message = 'Unable to download document.';
+                try {
+                    const data = await response.json();
+                    message = data.error_message || data.title || message;
+                } catch (_) {
+                    // Binary or empty error body — keep default message.
+                }
+
+                throw new Error(message);
+            }
+
+            const blob = await response.blob();
+            const disposition = response.headers.get('Content-Disposition') || '';
+            const match = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
+            const fileName = match ? decodeURIComponent(match[1].replace(/"/g, '')) : fallbackName;
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            window.alert(error.message || 'Unable to download document.');
+        } finally {
+            loaders.setButtonLoading(button, false);
+            button.disabled = false;
+        }
+    }
+
+    async function toggleActiveButton(button) {
+        const documentId = Number(button.getAttribute('data-document-id'));
+        const isActive = button.getAttribute('data-is-active') === 'true';
+        const newActive = !isActive;
+
+        button.disabled = true;
+        loaders.setButtonLoading(button, true);
 
         try {
             const response = await fetch(endpoints.updateActive, {
@@ -717,7 +1010,7 @@
                 },
                 body: JSON.stringify({
                     document_id: documentId,
-                    is_active: isActive
+                    is_active: newActive
                 })
             });
 
@@ -726,10 +1019,27 @@
                 throw new Error(data.error_message || 'Unable to update document status.');
             }
 
+            updateStatusButtonAppearance(button, newActive);
+
+            const row = button.closest('[data-document-row]');
+            const ingestToggle = row?.querySelector('.doc-ingest-toggle');
+            if (ingestToggle) {
+                if (!newActive) {
+                    ingestToggle.checked = false;
+                }
+
+                const badge = row.querySelector(`[data-ingestion-badge="${documentId}"]`);
+                const ingestionStatus = badge?.textContent?.trim() || 'Pending';
+                ingestToggle.disabled = !newActive || ingestionStatus.toLowerCase() === 'processing';
+            }
+
+            updateIngestionButtonState();
             await loadStatistics();
         } catch (error) {
-            input.checked = !isActive;
             window.alert(error.message || 'Unable to update document status.');
+        } finally {
+            loaders.setButtonLoading(button, false);
+            button.disabled = false;
         }
     }
 
@@ -739,14 +1049,16 @@
         }
 
         isUploading = true;
+        loaders.setButtonLoading(elements.bulkUploadBtn, true);
         const category = activeCategory;
         let completed = 0;
         let successCount = 0;
         let failedCount = 0;
 
-        showProgress(0, items.length, 'Starting bulk upload...');
+        try {
+            showProgress(0, items.length, 'Starting bulk upload...');
 
-        for (const item of items) {
+            for (const item of items) {
             const formData = new FormData();
             formData.append('category', category);
             formData.append('title', item.title.trim());
@@ -766,25 +1078,28 @@
 
             completed++;
             updateProgress((completed / items.length) * 100, `${completed} / ${items.length}`, `Processed ${completed} of ${items.length} files.`);
-        }
-
-        if (elements.uploadProgressTitle) {
-            elements.uploadProgressTitle.textContent = 'Upload complete';
-        }
-
-        if (elements.uploadProgressMessage) {
-            elements.uploadProgressMessage.textContent = `${successCount} succeeded, ${failedCount} failed.`;
-        }
-
-        paginationState[category].page = 1;
-        await refreshPage();
-        isUploading = false;
-
-        window.setTimeout(function () {
-            if (elements.uploadProgressPanel) {
-                elements.uploadProgressPanel.hidden = true;
             }
-        }, 2500);
+
+            if (elements.uploadProgressTitle) {
+                elements.uploadProgressTitle.textContent = 'Upload complete';
+            }
+
+            if (elements.uploadProgressMessage) {
+                elements.uploadProgressMessage.textContent = `${successCount} succeeded, ${failedCount} failed.`;
+            }
+
+            paginationState[category].page = 1;
+            await refreshPage();
+
+            window.setTimeout(function () {
+                if (elements.uploadProgressPanel) {
+                    elements.uploadProgressPanel.hidden = true;
+                }
+            }, 2500);
+        } finally {
+            isUploading = false;
+            loaders.setButtonLoading(elements.bulkUploadBtn, false);
+        }
     }
 
     function uploadSingleFile(formData, fileName, onProgress) {

@@ -79,4 +79,16 @@ public class DocumentRepositoryController : Controller
     {
         return await _documentLogic.IngestDocumentAsync(request.DocumentId, cancellationToken);
     }
+
+    [HttpGet]
+    public async Task<IActionResult> Download(long document_id, CancellationToken cancellationToken)
+    {
+        var result = await _documentLogic.DownloadDocumentAsync(document_id, cancellationToken);
+        if (result == null || result.FileContent.Length == 0)
+        {
+            return NotFound();
+        }
+
+        return File(result.FileContent, result.ContentType, result.FileName);
+    }
 }

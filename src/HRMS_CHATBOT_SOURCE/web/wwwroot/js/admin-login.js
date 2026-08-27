@@ -19,7 +19,7 @@
             togglePassword.addEventListener('click', function () {
                 const isPassword = passwordInput.type === 'password';
                 passwordInput.type = isPassword ? 'text' : 'password';
-                eyeIcon.setAttribute('icon', isPassword ? 'ph:eye-slash-duotone' : 'ph:eye-duotone');
+                eyeIcon.setAttribute('icon', isPassword ? 'ph:eye-slash' : 'ph:eye');
             });
         }
 
@@ -152,7 +152,13 @@
             }
 
             loginBtn.classList.toggle('loading', loading);
+            loginBtn.disabled = loading;
             loginBtn.setAttribute('aria-busy', loading ? 'true' : 'false');
+
+            const label = loginBtn.querySelector('.btn-label');
+            if (label) {
+                label.textContent = loading ? 'Signing in...' : 'Sign In';
+            }
         }
 
         function shakeForm() {

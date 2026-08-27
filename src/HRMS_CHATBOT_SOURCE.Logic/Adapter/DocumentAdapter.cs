@@ -87,6 +87,20 @@ internal static class DocumentAdapter
         };
     }
 
+    internal static DocumentMstrDto? MapById(MSSQLResponse? response)
+    {
+        EnsureSuccess(response);
+
+        if (response?.Data is not DataSet { Tables.Count: > 0 } dataSet
+            || dataSet.Tables[0].Rows.Count == 0
+            || !dataSet.Tables[0].Columns.Contains("dm_id"))
+        {
+            return null;
+        }
+
+        return MapDocumentRow(dataSet.Tables[0].Rows[0]);
+    }
+
     internal static long MapInsertedDocumentId(MSSQLResponse? response)
     {
         EnsureSuccess(response);

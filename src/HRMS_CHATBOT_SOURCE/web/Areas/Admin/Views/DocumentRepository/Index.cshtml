@@ -4,59 +4,84 @@
 }
 
 <div class="doc-repo-page">
-    <div class="dashboard-header animate-up">
-        <div>
-            <p class="dashboard-greeting" id="docRepoStatus">Ready to ingest new documents.</p>
-            <h1 class="dashboard-title">Document Corpus</h1>
-            <p class="dashboard-subtitle">Upload policy documents, training materials, images, and videos to Azure blob storage.</p>
+    <div class="page-hero animate-up">
+        <div class="page-hero-content">
+            <p class="dashboard-greeting" id="docRepoStatus">Document repository is ready.</p>
+            <h1 class="page-hero-title">Document <span>Corpus</span></h1>
+            <p class="page-hero-subtitle">Upload policy documents and training materials to Azure blob storage.</p>
+        </div>
+        <div class="page-hero-art" aria-hidden="true">
+            <div class="hero-cloud hero-cloud-1"></div>
+            <div class="hero-cloud hero-cloud-2"></div>
+            <div class="hero-folder">
+                <iconify-icon icon="ph:folder-open-duotone"></iconify-icon>
+            </div>
+            <div class="hero-upload-arrow">
+                <iconify-icon icon="ph:arrow-up-duotone"></iconify-icon>
+            </div>
         </div>
     </div>
 
-    <div class="stats-grid doc-stats-grid animate-up delay-1">
+    <div class="stats-grid doc-stats-grid animate-up delay-1" id="docStatsGrid">
         <div class="stat-card">
-            <div class="stat-icon purple">
-                <iconify-icon icon="ph:files-duotone"></iconify-icon>
+            <div class="stat-card-body">
+                <div class="stat-icon purple">
+                    <iconify-icon icon="ph:files-duotone"></iconify-icon>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Documents</span>
+                    <span class="stat-value" id="statTotalDocuments">0</span>
+                </div>
             </div>
-            <div class="stat-info">
-                <span class="stat-label">Total Documents</span>
-                <span class="stat-value" id="statTotalDocuments">0</span>
-            </div>
+            <svg class="stat-wave purple" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 30 C45 10 95 50 150 28 S255 8 300 32 V54 H0 Z" fill="currentColor"/></svg>
         </div>
         <div class="stat-card">
-            <div class="stat-icon blue">
-                <iconify-icon icon="ph:file-text-duotone"></iconify-icon>
+            <div class="stat-card-body">
+                <div class="stat-icon blue">
+                    <iconify-icon icon="ph:file-text-duotone"></iconify-icon>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Policy Documents</span>
+                    <span class="stat-value" id="statPolicyDocuments">0</span>
+                </div>
             </div>
-            <div class="stat-info">
-                <span class="stat-label">Policy Documents</span>
-                <span class="stat-value" id="statPolicyDocuments">0</span>
-            </div>
+            <svg class="stat-wave blue" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 26 C60 46 110 12 160 30 S240 48 300 22 V54 H0 Z" fill="currentColor"/></svg>
         </div>
         <div class="stat-card">
-            <div class="stat-icon teal">
-                <iconify-icon icon="ph:graduation-cap-duotone"></iconify-icon>
+            <div class="stat-card-body">
+                <div class="stat-icon teal">
+                    <iconify-icon icon="ph:graduation-cap-duotone"></iconify-icon>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Training Materials</span>
+                    <span class="stat-value" id="statTrainingDocuments">0</span>
+                </div>
             </div>
-            <div class="stat-info">
-                <span class="stat-label">Training Materials</span>
-                <span class="stat-value" id="statTrainingDocuments">0</span>
-            </div>
+            <svg class="stat-wave teal" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 34 C55 14 105 44 155 26 S250 10 300 36 V54 H0 Z" fill="currentColor"/></svg>
         </div>
         <div class="stat-card">
-            <div class="stat-icon pink">
-                <iconify-icon icon="ph:check-circle-duotone"></iconify-icon>
+            <div class="stat-card-body">
+                <div class="stat-icon pink">
+                    <iconify-icon icon="ph:check-circle-duotone"></iconify-icon>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Active Documents</span>
+                    <span class="stat-value" id="statActiveDocuments">0</span>
+                </div>
             </div>
-            <div class="stat-info">
-                <span class="stat-label">Active Documents</span>
-                <span class="stat-value" id="statActiveDocuments">0</span>
-            </div>
+            <svg class="stat-wave pink" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 28 C50 48 100 16 150 34 S230 12 300 30 V54 H0 Z" fill="currentColor"/></svg>
         </div>
         <div class="stat-card">
-            <div class="stat-icon purple">
-                <iconify-icon icon="ph:archive-duotone"></iconify-icon>
+            <div class="stat-card-body">
+                <div class="stat-icon red">
+                    <iconify-icon icon="ph:archive-duotone"></iconify-icon>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Inactive Documents</span>
+                    <span class="stat-value" id="statInactiveDocuments">0</span>
+                </div>
             </div>
-            <div class="stat-info">
-                <span class="stat-label">Inactive Documents</span>
-                <span class="stat-value" id="statInactiveDocuments">0</span>
-            </div>
+            <svg class="stat-wave red" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 32 C48 12 98 42 148 24 S252 8 300 28 V54 H0 Z" fill="currentColor"/></svg>
         </div>
     </div>
 
@@ -75,11 +100,11 @@
         </div>
         <div class="doc-toolbar-right">
             <input type="file" id="bulkFileInput" multiple accept="@DocumentUploadConstants.AcceptAttribute" hidden />
-            <button class="btn-outline btn-sm" type="button" id="startIngestionBtn" disabled>
+            <button class="btn-ingestion btn-sm" type="button" id="startIngestionBtn" disabled>
                 <iconify-icon icon="ph:database-duotone"></iconify-icon>
                 <span>Start Ingestion</span>
             </button>
-            <button class="btn-outline btn-sm" type="button" id="bulkUploadBtn">
+            <button class="btn-gradient btn-sm" type="button" id="bulkUploadBtn">
                 <iconify-icon icon="ph:upload-simple-duotone"></iconify-icon>
                 <span>Bulk Upload</span>
             </button>
@@ -108,10 +133,10 @@
         <p class="upload-progress-message" id="uploadProgressMessage"></p>
     </div>
 
-    <div class="panel-card animate-up delay-3 page-panel">
+    <div class="panel-card animate-up delay-3 page-panel doc-table-panel" id="docTablePanel">
         <div class="panel-header doc-table-header">
             <div>
-                <h3 id="docTableTitle">Policy Documents</h3>
+                <h3 id="docTableTitle">Document Corpus</h3>
                 <p id="docTableSubtitle">Uploaded policy files stored in Azure blob storage</p>
             </div>
             <div class="doc-table-actions">
@@ -128,26 +153,29 @@
 
         <div class="doc-table-wrap">
             <table class="doc-table" id="documentsTable">
+                <colgroup>
+                    <col class="doc-col-ingest-select" />
+                    <col class="doc-col-title" />
+                    <col class="doc-col-category" />
+                    <col class="doc-col-ingestion" />
+                    <col class="doc-col-created-by" />
+                    <col class="doc-col-date" />
+                    <col class="doc-col-actions" />
+                </colgroup>
                 <thead>
                     <tr>
-                        <th class="doc-select-col">
-                            <label class="doc-select-all" title="Select all on this page">
-                                <input type="checkbox" id="selectAllDocuments" />
-                            </label>
-                        </th>
-                        <th>Active</th>
-                        <th>ID</th>
+                        <th class="doc-ingest-col">Ingest</th>
                         <th>Title</th>
                         <th>Category</th>
                         <th>Ingestion</th>
-                        <th>Path</th>
                         <th>Created By</th>
                         <th>Created Date</th>
+                        <th class="doc-actions-col">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="documentsTableBody">
                     <tr class="doc-empty-row">
-                        <td colspan="9">
+                        <td colspan="7">
                             <div class="empty-state compact">
                                 <div class="empty-state-icon">
                                     <iconify-icon icon="ph:folder-open-duotone"></iconify-icon>
@@ -164,9 +192,14 @@
         <div class="doc-pagination" id="docPagination" hidden>
             <div class="doc-pagination-info" id="paginationInfo">Showing 0 of 0</div>
             <div class="doc-pagination-controls">
-                <button class="btn-outline btn-sm" type="button" id="prevPageBtn" disabled>Previous</button>
+                <button class="btn-outline btn-sm doc-page-nav" type="button" id="prevPageBtn" disabled>
+                    <iconify-icon icon="ph:caret-left-duotone"></iconify-icon>
+                </button>
                 <div class="doc-pagination-pages" id="paginationPages"></div>
-                <button class="btn-outline btn-sm" type="button" id="nextPageBtn" disabled>Next</button>
+                <button class="btn-outline btn-sm doc-page-nav" type="button" id="nextPageBtn" disabled>
+                    <iconify-icon icon="ph:caret-right-duotone"></iconify-icon>
+                </button>
+                <span class="doc-page-size">10 / page</span>
             </div>
         </div>
     </div>
