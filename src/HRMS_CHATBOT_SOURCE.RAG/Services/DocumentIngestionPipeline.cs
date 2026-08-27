@@ -119,7 +119,11 @@ public class DocumentIngestionPipeline : IDocumentIngestionPipeline
                     cancellationToken);
             }
 
-            await _vectorStoreService.DeleteByDocumentIdAsync(documentId, cancellationToken);
+            bool isDocPresent = await _vectorStoreService.ExistsByDocumentIdAsync(documentId, cancellationToken);
+            if (isDocPresent)
+            {
+                await _vectorStoreService.DeleteByDocumentIdAsync(documentId, cancellationToken);
+            }
 
             var embeddings = await _embeddingService.CreateEmbeddingsAsync(chunkTexts, cancellationToken);
             var vectorPoints = new List<VectorDocumentPoint>(embeddings.Count);

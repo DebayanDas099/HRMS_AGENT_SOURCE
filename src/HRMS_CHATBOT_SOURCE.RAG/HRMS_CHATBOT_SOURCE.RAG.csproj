@@ -10,7 +10,7 @@
     <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
-    <PackageReference Include="MCC.Foundation.QdrantHelper" Version="0.0.1" />
+    <PackageReference Include="MCC.Foundation.QdrantHelper" Version="0.0.3" />
   </ItemGroup>
 
   <ItemGroup>

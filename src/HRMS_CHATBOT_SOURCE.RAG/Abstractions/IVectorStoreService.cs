@@ -10,5 +10,7 @@ public interface IVectorStoreService
         IReadOnlyList<VectorDocumentPoint> points,
         CancellationToken cancellationToken = default);
 
+    Task<bool> ExistsByDocumentIdAsync(long documentId, CancellationToken cancellationToken = default);
+
     Task DeleteByDocumentIdAsync(long documentId, CancellationToken cancellationToken = default);
 }
