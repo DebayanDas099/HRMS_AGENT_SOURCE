@@ -97,7 +97,10 @@ public class AgentRepo : IAgentRepo
         };
     }
 
-    public async Task<MSSQLResponse?> GetControlPanelAsync(string? userGrpCode, CancellationToken cancellationToken = default)
+    public async Task<MSSQLResponse?> GetControlPanelAsync(
+        string? userGrpCode,
+        string? payroll = null,
+        CancellationToken cancellationToken = default)
     {
         var sqlParams = new List<SqlParameter>
         {
@@ -108,6 +111,14 @@ public class AgentRepo : IAgentRepo
                 Direction = ParameterDirection.Input,
                 Size = 20,
                 Value = Utils.IIFStringOrDBNull(userGrpCode)
+            },
+            new()
+            {
+                ParameterName = "@user_payroll",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 20,
+                Value = Utils.IIFStringOrDBNull(payroll)
             }
         };
 
@@ -128,9 +139,40 @@ public class AgentRepo : IAgentRepo
         };
     }
 
+    public async Task<MSSQLResponse?> GetPayrollMatrixAsync(long agentId, CancellationToken cancellationToken = default)
+    {
+        var sqlParams = new List<SqlParameter>
+        {
+            new()
+            {
+                ParameterName = "@agent_id",
+                DbType = DbType.Int64,
+                Direction = ParameterDirection.Input,
+                Value = agentId
+            }
+        };
+
+        sqlParams.AddRange(CreateOutputParams());
+
+        return new MSSQLResponse
+        {
+            Data = await _sqlHelper.FetchData(new ExecuteDataSetRequest
+            {
+                CommandText = "[dbo].[Get_Agent_Group_Payroll_Matrix]",
+                CommandTimeout = SqlCommon.SQLCommandTimeOut,
+                CommandType = CommandType.StoredProcedure,
+                ConnectionProperties = _serviceContext.SQLConnectionModel,
+                IsMultipleTables = true,
+                Parameters = sqlParams.ToArray()
+            }),
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+    }
+
     public async Task<MSSQLResponse?> UpdateGroupActiveAsync(
         long agentId,
         string? userGrpCode,
+        string? payroll,
         string active,
         string? createdBy,
         CancellationToken cancellationToken = default)
@@ -167,6 +209,14 @@ public class AgentRepo : IAgentRepo
                 Direction = ParameterDirection.Input,
                 Size = 20,
                 Value = Utils.IIFStringOrDBNull(createdBy)
+            },
+            new()
+            {
+                ParameterName = "@user_payroll",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 20,
+                Value = Utils.IIFStringOrDBNull(payroll)
             }
         };
 

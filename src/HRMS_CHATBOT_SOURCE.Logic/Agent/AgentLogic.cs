@@ -61,6 +61,7 @@ public class AgentLogic : IAgentLogic
 
     public async Task<AgentControlPanelResponseDto> GetControlPanelAsync(
         string? userGrpCode,
+        string? payroll = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(userGrpCode))
@@ -68,7 +69,11 @@ public class AgentLogic : IAgentLogic
             throw new ValidationException("User group code is required.");
         }
 
-        var assignmentsResponse = await _agentRepo.GetControlPanelAsync(userGrpCode.Trim(), cancellationToken);
+        var normalizedPayroll = NormalizePayroll(payroll, allowNull: true);
+        var assignmentsResponse = await _agentRepo.GetControlPanelAsync(
+            userGrpCode.Trim(),
+            normalizedPayroll,
+            cancellationToken);
         var assignments = AgentAdapter.MapAssignments(assignmentsResponse);
 
         var activeCount = assignments.Count(item =>
@@ -85,9 +90,30 @@ public class AgentLogic : IAgentLogic
         };
     }
 
-    public async Task<AgentGroupAssignmentDto> UpdateGroupActiveAsync(
+    public async Task<AgentPayrollMatrixResponseDto> GetPayrollMatrixAsync(
+        long agentId,
+        CancellationToken cancellationToken = default)
+    {
+        if (agentId <= 0)
+        {
+            throw new ValidationException("Invalid agent id.");
+        }
+
+        var response = await _agentRepo.GetPayrollMatrixAsync(agentId, cancellationToken);
+        var items = AgentAdapter.MapPayrollMatrix(response);
+
+        return new AgentPayrollMatrixResponseDto
+        {
+            AgentId = agentId,
+            AgentName = items.FirstOrDefault()?.AgentName ?? string.Empty,
+            Items = items
+        };
+    }
+
+    public async Task<AgentPayrollAssignmentDto> UpdateGroupActiveAsync(
         long agentId,
         string? userGrpCode,
+        string? payroll,
         bool isActive,
         string? createdBy,
         CancellationToken cancellationToken = default)
@@ -103,16 +129,20 @@ public class AgentLogic : IAgentLogic
         }
 
         var groupCode = userGrpCode.Trim();
+        var normalizedPayroll = NormalizePayroll(payroll, allowNull: false);
         var response = await _agentRepo.UpdateGroupActiveAsync(
             agentId,
             groupCode,
+            normalizedPayroll,
             isActive ? "Y" : "N",
             createdBy,
             cancellationToken);
         AgentAdapter.EnsureSuccess(response);
 
-        var panel = await GetControlPanelAsync(groupCode, cancellationToken);
-        var updated = panel.Items.FirstOrDefault(item => item.AgentId == agentId);
+        var matrix = await GetPayrollMatrixAsync(agentId, cancellationToken);
+        var updated = matrix.Items.FirstOrDefault(item =>
+            string.Equals(item.UserGrpCode, groupCode, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(item.UserPayroll, normalizedPayroll, StringComparison.OrdinalIgnoreCase));
         if (updated == null)
         {
             throw new ValidationException("Agent assignment was updated but could not be reloaded.");
@@ -131,7 +161,10 @@ public class AgentLogic : IAgentLogic
             throw new ValidationException("User group code is required.");
         }
 
-        var response = await _agentRepo.GetEnabledAgentsAsync(userGrpCode.Trim(), payroll, cancellationToken);
+        var response = await _agentRepo.GetEnabledAgentsAsync(
+            userGrpCode.Trim(),
+            NormalizePayroll(payroll, allowNull: false),
+            cancellationToken);
         var agents = AgentAdapter.MapEnabledAgents(response);
 
         if (!agents.Any(agent => string.Equals(agent.AgentName, AgentNames.Supervisor, StringComparison.OrdinalIgnoreCase)))
@@ -142,5 +175,17 @@ public class AgentLogic : IAgentLogic
         }
 
         return agents;
+    }
+
+    private static string? NormalizePayroll(string? payroll, bool allowNull)
+    {
+        if (string.IsNullOrWhiteSpace(payroll))
+        {
+            return allowNull ? null : "onroll";
+        }
+
+        return string.Equals(payroll.Trim(), "offroll", StringComparison.OrdinalIgnoreCase)
+            ? "offroll"
+            : "onroll";
     }
 }

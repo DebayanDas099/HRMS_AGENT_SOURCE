@@ -2,7 +2,7 @@ using Newtonsoft.Json;
 
 namespace HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 
-public class AgentGroupAssignmentDto
+public class AgentPayrollAssignmentDto
 {
     [JsonProperty("am_id")]
     public long AgentId { get; set; }
@@ -13,8 +13,14 @@ public class AgentGroupAssignmentDto
     [JsonProperty("am_active")]
     public string MasterActive { get; set; } = "N";
 
+    [JsonProperty("grp_user_group_code")]
+    public string UserGrpCode { get; set; } = string.Empty;
+
+    [JsonProperty("grp_user_group_desc")]
+    public string UserGrpDesc { get; set; } = string.Empty;
+
     [JsonProperty("user_payroll")]
-    public string UserPayroll { get; set; } = string.Empty;
+    public string UserPayroll { get; set; } = "onroll";
 
     [JsonProperty("aaug_active")]
     public string GroupActive { get; set; } = "N";
@@ -24,7 +30,4 @@ public class AgentGroupAssignmentDto
 
     [JsonProperty("can_toggle")]
     public string CanToggle { get; set; } = "N";
-
-    [JsonProperty("role")]
-    public string Role { get; set; } = "Specialist";
 }

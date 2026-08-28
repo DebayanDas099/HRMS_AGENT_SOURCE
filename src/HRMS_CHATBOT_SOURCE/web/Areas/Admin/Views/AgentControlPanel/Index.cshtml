@@ -8,7 +8,7 @@
         <div class="page-hero-content">
             <p class="dashboard-greeting" id="acpStatus">Turn models on globally, then assign them to user groups.</p>
             <h1 class="page-hero-title">Agent <span>Control Panel</span></h1>
-            <p class="page-hero-subtitle">Activate or deactivate agent models, then enable them per user group. Deactivated models are removed from the workflow and cannot be used in prompts.</p>
+            <p class="page-hero-subtitle">Activate or deactivate agent models. Click an agent name to enable it for specific user groups. Deactivated models are removed from the workflow and cannot be used in prompts.</p>
         </div>
         <div class="page-hero-art" aria-hidden="true">
             <div class="hero-cloud hero-cloud-1"></div>
@@ -74,10 +74,11 @@
         <div class="panel-header acp-table-header">
             <div>
                 <h3>Agent Models</h3>
-                <p>Global on/off for every model. Inactive models cannot be assigned to a user group.</p>
+                <p>Check models to activate globally, then click Save. Click an agent name to assign user groups.</p>
             </div>
             <div class="acp-table-actions">
                 <span class="acp-count-badge" id="acpModelsCountBadge">0</span>
+                <button class="btn-gradient btn-sm" type="button" id="saveModelsBtn">Save</button>
                 <button class="btn-icon" type="button" id="refreshAgentsBtn" title="Refresh">
                     <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
                 </button>
@@ -109,53 +110,34 @@
             </table>
         </div>
     </div>
+</div>
 
-    <div class="acp-toolbar panel-card animate-up delay-3">
-        <div class="acp-toolbar-left">
+<div class="acp-modal" id="acpGroupModal" hidden aria-hidden="true">
+    <div class="acp-modal-backdrop" id="acpGroupModalBackdrop"></div>
+    <div class="acp-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="acpGroupModalTitle">
+        <div class="acp-modal-header">
             <div>
-                <h3 class="acp-section-title">Per user group</h3>
-                <p class="acp-section-subtitle">Enable active models for DG, SO, and SYSADMIN.</p>
+                <h3 id="acpGroupModalTitle">User group access</h3>
+                <p id="acpGroupModalSubtitle">Enable this agent for onroll and offroll user groups.</p>
             </div>
+            <button class="btn-icon acp-modal-close" type="button" id="closeGroupModal" title="Close">
+                <iconify-icon icon="ph:x-duotone"></iconify-icon>
+            </button>
         </div>
-        <div class="acp-toolbar-right">
-            <div class="acp-group-tabs" role="tablist" aria-label="User groups" id="acpGroupTabs"></div>
-        </div>
-    </div>
-
-    <div class="panel-card animate-up delay-3 page-panel acp-table-panel" id="acpTablePanel">
-        <div class="panel-header acp-table-header">
-            <div>
-                <h3 id="acpTableTitle">Group assignments</h3>
-                <p id="acpTableSubtitle">Select a user group to manage agent access</p>
+        <div class="acp-modal-toolbar">
+            <div class="acp-search-box">
+                <iconify-icon icon="ph:magnifying-glass-duotone"></iconify-icon>
+                <input type="search" id="acpGroupSearch" placeholder="Search user group..." />
             </div>
-            <span class="acp-count-badge" id="acpCountBadge">0</span>
+            <label class="acp-select-all">
+                <input type="checkbox" id="acpEnableAll" />
+                <span>Enable all</span>
+            </label>
+            <span class="acp-selected-count" id="acpSelectedCount">0 selected</span>
         </div>
-
-        <div class="acp-table-wrap">
-            <table class="acp-table" id="agentsTable">
-                <thead>
-                    <tr>
-                        <th>Agent</th>
-                        <th>Role</th>
-                        <th>Global</th>
-                        <th>For this group</th>
-                        <th class="acp-actions-col">Status</th>
-                    </tr>
-                </thead>
-                <tbody id="agentsTableBody">
-                    <tr class="acp-empty-row">
-                        <td colspan="5">
-                            <div class="empty-state compact">
-                                <div class="empty-state-icon">
-                                    <iconify-icon icon="ph:robot-duotone"></iconify-icon>
-                                </div>
-                                <h4>No agents yet</h4>
-                                <p>Agent assignments will appear here once user groups are loaded.</p>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="acp-modal-body" id="acpGroupTree"></div>
+        <div class="acp-modal-footer">
+            <button class="btn-gradient btn-sm" type="button" id="doneGroupModal">Save</button>
         </div>
     </div>
 </div>
