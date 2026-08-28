@@ -12,11 +12,17 @@ public interface IAgentLogic
 
     Task<AgentControlPanelResponseDto> GetControlPanelAsync(
         string? userGrpCode,
+        string? payroll = null,
         CancellationToken cancellationToken = default);
 
-    Task<AgentGroupAssignmentDto> UpdateGroupActiveAsync(
+    Task<AgentPayrollMatrixResponseDto> GetPayrollMatrixAsync(
+        long agentId,
+        CancellationToken cancellationToken = default);
+
+    Task<AgentPayrollAssignmentDto> UpdateGroupActiveAsync(
         long agentId,
         string? userGrpCode,
+        string? payroll,
         bool isActive,
         string? createdBy,
         CancellationToken cancellationToken = default);

@@ -53,16 +53,26 @@ public class AgentControlPanelController : Controller
     [Produces("application/json")]
     public async Task<AgentControlPanelResponseDto> GetAssignments(
         string user_grp_code,
+        string? user_payroll,
         CancellationToken cancellationToken)
     {
-        return await _agentLogic.GetControlPanelAsync(user_grp_code, cancellationToken);
+        return await _agentLogic.GetControlPanelAsync(user_grp_code, user_payroll, cancellationToken);
+    }
+
+    [HttpGet]
+    [Produces("application/json")]
+    public async Task<AgentPayrollMatrixResponseDto> GetAssignmentsForAgent(
+        long agent_id,
+        CancellationToken cancellationToken)
+    {
+        return await _agentLogic.GetPayrollMatrixAsync(agent_id, cancellationToken);
     }
 
     [HttpPost]
     [IgnoreAntiforgeryToken]
     [Consumes("application/json")]
     [Produces("application/json")]
-    public async Task<AgentGroupAssignmentDto> UpdateActive(
+    public async Task<AgentPayrollAssignmentDto> UpdateActive(
         [FromBody] UpdateAgentGroupActiveRequest request,
         CancellationToken cancellationToken)
     {
@@ -73,6 +83,7 @@ public class AgentControlPanelController : Controller
         return await _agentLogic.UpdateGroupActiveAsync(
             request.AgentId,
             request.UserGrpCode,
+            request.UserPayroll,
             request.IsActive,
             createdBy,
             cancellationToken);

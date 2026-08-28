@@ -47,6 +47,19 @@ internal static class AgentAdapter
         return dataSet.Tables[0].Rows.Cast<DataRow>().Select(MapAssignmentRow).ToList();
     }
 
+    internal static List<AgentPayrollAssignmentDto> MapPayrollMatrix(MSSQLResponse? response)
+    {
+        EnsureSuccess(response);
+
+        if (response?.Data is not DataSet { Tables.Count: > 0 } dataSet
+            || dataSet.Tables[0].Rows.Count == 0)
+        {
+            return [];
+        }
+
+        return dataSet.Tables[0].Rows.Cast<DataRow>().Select(MapPayrollRow).ToList();
+    }
+
     internal static List<EnabledAgentDto> MapEnabledAgents(MSSQLResponse? response)
     {
         EnsureSuccess(response);
@@ -89,7 +102,24 @@ internal static class AgentAdapter
             GroupActive = Convert.ToString(row["aaug_active"]) ?? "N",
             IsLocked = Convert.ToString(row["is_locked"]) ?? "N",
             CanToggle = Convert.ToString(row["can_toggle"]) ?? "N",
-            Role = ResolveRole(agentName)
+            Role = ResolveRole(agentName),
+            UserPayroll = ReadOptionalString(row, "user_payroll")
+        };
+    }
+
+    internal static AgentPayrollAssignmentDto MapPayrollRow(DataRow row)
+    {
+        return new AgentPayrollAssignmentDto
+        {
+            AgentId = ToLong(row["am_id"]),
+            AgentName = Convert.ToString(row["am_name"]) ?? string.Empty,
+            MasterActive = Convert.ToString(row["am_active"]) ?? "N",
+            UserGrpCode = Convert.ToString(row["grp_user_group_code"]) ?? string.Empty,
+            UserGrpDesc = Convert.ToString(row["grp_user_group_desc"]) ?? string.Empty,
+            UserPayroll = Convert.ToString(row["user_payroll"]) ?? "onroll",
+            GroupActive = Convert.ToString(row["aaug_active"]) ?? "N",
+            IsLocked = Convert.ToString(row["is_locked"]) ?? "N",
+            CanToggle = Convert.ToString(row["can_toggle"]) ?? "N"
         };
     }
 
@@ -123,6 +153,13 @@ internal static class AgentAdapter
             GroupCode = Convert.ToString(row["grp_user_group_code"]) ?? string.Empty,
             GroupDesc = Convert.ToString(row["grp_user_group_desc"]) ?? string.Empty
         };
+    }
+
+    private static string ReadOptionalString(DataRow row, string columnName)
+    {
+        return row.Table.Columns.Contains(columnName)
+            ? Convert.ToString(row[columnName]) ?? string.Empty
+            : string.Empty;
     }
 
     private static long ToLong(object? value)
