@@ -228,6 +228,25 @@
     </div>
 </div>
 
+<div class="doc-confirm-modal" id="deleteConfirmModal" hidden aria-hidden="true">
+    <div class="doc-confirm-modal-backdrop" id="deleteConfirmBackdrop"></div>
+    <div class="doc-confirm-modal-dialog" role="alertdialog" aria-modal="true" aria-labelledby="deleteConfirmTitle" aria-describedby="deleteConfirmMessage">
+        <div class="doc-confirm-icon" aria-hidden="true">
+            <iconify-icon icon="ph:trash-duotone"></iconify-icon>
+        </div>
+        <h3 id="deleteConfirmTitle">Delete Document?</h3>
+        <p class="doc-confirm-message" id="deleteConfirmMessage">Are you sure you want to delete this document?</p>
+        <span class="doc-confirm-doc-name" id="deleteConfirmDocName"></span>
+        <div class="doc-confirm-modal-footer">
+            <button class="btn-outline" type="button" id="cancelDeleteBtn">Cancel</button>
+            <button class="btn-danger" type="button" id="confirmDeleteBtn">
+                <iconify-icon icon="ph:trash-duotone"></iconify-icon>
+                <span id="confirmDeleteBtnLabel">Yes, Delete</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <link rel="stylesheet" href="~/css/document-repository.css" asp-append-version="true" />
     <script src="~/js/document-repository.js" asp-append-version="true"></script>

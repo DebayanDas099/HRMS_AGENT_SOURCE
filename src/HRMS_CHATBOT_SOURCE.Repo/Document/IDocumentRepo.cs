@@ -23,6 +23,8 @@ public interface IDocumentRepo
 
     Task<MSSQLResponse?> UpdateActiveAsync(long documentId, string active, CancellationToken cancellationToken = default);
 
+    Task<MSSQLResponse?> DeleteAsync(long documentId, CancellationToken cancellationToken = default);
+
     Task<MSSQLResponse?> GetByIdAsync(long documentId, CancellationToken cancellationToken = default);
 
     Task<MSSQLResponse?> UpdateIngestionAsync(
