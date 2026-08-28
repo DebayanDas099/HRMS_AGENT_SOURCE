@@ -44,6 +44,10 @@ public static class KeyVaultBootstrap
                 LlmEmbeddingDeployment = await GetSecretOrNullAsync(client, KeyVaultSecretNames.LlmEmbeddingDeployment, cancellationToken),
                 QdrantApiKey = await GetSecretAsync(client, KeyVaultSecretNames.QdrantApiKey, cancellationToken),
                 QdrantEndpoint = await GetSecretAsync(client, KeyVaultSecretNames.QdrantEndpoint, cancellationToken),
+                AzureAiSearchAdminKey = await GetSecretAsync(client, KeyVaultSecretNames.AzureAiSearchAdminKey, cancellationToken),
+                AzureAiSearchEndpoint = await GetSecretAsync(client, KeyVaultSecretNames.AzureAiSearchEndpoint, cancellationToken),
+                AzureSpeechApiKey = await GetSecretAsync(client, KeyVaultSecretNames.AzureSpeechApiKey, cancellationToken),
+                AzureSpeechEndpoint = await GetSecretAsync(client, KeyVaultSecretNames.AzureSpeechEndpoint, cancellationToken),
                 FetchedAtUtc = DateTime.UtcNow
             };
 

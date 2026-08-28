@@ -14,6 +14,10 @@ public static class KeyVaultSecretNames
     public const string LlmEmbeddingDeployment = "LLM-Embedding-Deployment";
     public const string QdrantApiKey = "Qdrant-API-Key";
     public const string QdrantEndpoint = "Qdrant-Endpoint";
+    public const string AzureAiSearchAdminKey = "Azure-AI-Search-Admin-Key";
+    public const string AzureAiSearchEndpoint = "Azure-AI-Search-Endpoint";
+    public const string AzureSpeechApiKey = "Azure-Speech-API-Key";
+    public const string AzureSpeechEndpoint = "Azure-Speech-Endpoint";
 
     public static readonly string[] All =
     [
@@ -28,6 +32,10 @@ public static class KeyVaultSecretNames
         LlmDeployment,
         LlmEmbeddingDeployment,
         QdrantApiKey,
-        QdrantEndpoint
+        QdrantEndpoint,
+        AzureAiSearchAdminKey,
+        AzureAiSearchEndpoint,
+        AzureSpeechApiKey,
+        AzureSpeechEndpoint
     ];
 }
