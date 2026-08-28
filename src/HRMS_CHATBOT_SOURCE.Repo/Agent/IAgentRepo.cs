@@ -10,11 +10,17 @@ public interface IAgentRepo
 
     Task<MSSQLResponse?> UpdateMasterActiveAsync(long agentId, string active, CancellationToken cancellationToken = default);
 
-    Task<MSSQLResponse?> GetControlPanelAsync(string? userGrpCode, CancellationToken cancellationToken = default);
+    Task<MSSQLResponse?> GetControlPanelAsync(
+        string? userGrpCode,
+        string? payroll = null,
+        CancellationToken cancellationToken = default);
+
+    Task<MSSQLResponse?> GetPayrollMatrixAsync(long agentId, CancellationToken cancellationToken = default);
 
     Task<MSSQLResponse?> UpdateGroupActiveAsync(
         long agentId,
         string? userGrpCode,
+        string? payroll,
         string active,
         string? createdBy,
         CancellationToken cancellationToken = default);

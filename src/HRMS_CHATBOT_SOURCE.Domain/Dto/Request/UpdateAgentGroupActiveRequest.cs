@@ -10,6 +10,9 @@ public class UpdateAgentGroupActiveRequest
     [JsonProperty("user_grp_code")]
     public string UserGrpCode { get; set; } = string.Empty;
 
+    [JsonProperty("user_payroll")]
+    public string UserPayroll { get; set; } = "onroll";
+
     [JsonProperty("is_active")]
     public bool IsActive { get; set; }
 }
