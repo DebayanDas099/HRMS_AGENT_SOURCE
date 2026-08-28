@@ -5,6 +5,7 @@ using HRMS_CHATBOT_SOURCE.Agent;
 using HRMS_CHATBOT_SOURCE.Logic;
 using HRMS_CHATBOT_SOURCE.RAG;
 using HRMS_CHATBOT_SOURCE.Repo.Admin;
+using HRMS_CHATBOT_SOURCE.Repo.Agent;
 using HRMS_CHATBOT_SOURCE.Repo.Document;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -30,6 +31,7 @@ builder.Services
 
 builder.Services.AddScoped<IUserProfileRepo, UserProfileRepo>();
 builder.Services.AddScoped<IDocumentRepo, DocumentRepo>();
+builder.Services.AddScoped<IAgentRepo, AgentRepo>();
 builder.Services.AddLogic();
 builder.Services.AddRag(builder.Configuration);
 builder.Services.AddHrmsAgentFramework(builder.Configuration);

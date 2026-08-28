@@ -1,3 +1,5 @@
+using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
+using HRMS_CHATBOT_SOURCE.Logic.Agent;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HRMS_CHATBOT_SOURCE.Logic;
@@ -8,6 +10,8 @@ public static class DependencyInjection
     {
         services.AddScoped<IAdminLogic, AdminLogic>();
         services.AddScoped<IDocumentLogic, DocumentLogic>();
+        services.AddScoped<IAgentLogic, AgentLogic>();
+        services.AddScoped<IAgentAccessService, AgentAccessService>();
         return services;
     }
 }

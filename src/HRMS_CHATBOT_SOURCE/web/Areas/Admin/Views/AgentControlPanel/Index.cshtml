@@ -1,0 +1,166 @@
+@{
+    ViewData["Title"] = "Agent Control Panel";
+    Layout = "_AdminLayout";
+}
+
+<div class="acp-page">
+    <div class="page-hero animate-up">
+        <div class="page-hero-content">
+            <p class="dashboard-greeting" id="acpStatus">Turn models on globally, then assign them to user groups.</p>
+            <h1 class="page-hero-title">Agent <span>Control Panel</span></h1>
+            <p class="page-hero-subtitle">Activate or deactivate agent models, then enable them per user group. Deactivated models are removed from the workflow and cannot be used in prompts.</p>
+        </div>
+        <div class="page-hero-art" aria-hidden="true">
+            <div class="hero-cloud hero-cloud-1"></div>
+            <div class="hero-cloud hero-cloud-2"></div>
+            <div class="hero-folder">
+                <iconify-icon icon="ph:sliders-horizontal-duotone"></iconify-icon>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats-grid acp-stats-grid animate-up delay-1" id="acpStatsGrid">
+        <div class="stat-card">
+            <div class="stat-card-body">
+                <div class="stat-icon purple">
+                    <iconify-icon icon="ph:users-three-duotone"></iconify-icon>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">User Groups</span>
+                    <span class="stat-value" id="statTotalGroups">0</span>
+                </div>
+            </div>
+            <svg class="stat-wave purple" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 30 C45 10 95 50 150 28 S255 8 300 32 V54 H0 Z" fill="currentColor"/></svg>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-body">
+                <div class="stat-icon blue">
+                    <iconify-icon icon="ph:robot-duotone"></iconify-icon>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Models</span>
+                    <span class="stat-value" id="statTotalAgents">0</span>
+                </div>
+            </div>
+            <svg class="stat-wave blue" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 26 C60 46 110 12 160 30 S240 48 300 22 V54 H0 Z" fill="currentColor"/></svg>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-body">
+                <div class="stat-icon teal">
+                    <iconify-icon icon="ph:check-circle-duotone"></iconify-icon>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Globally Active</span>
+                    <span class="stat-value" id="statActiveAgents">0</span>
+                </div>
+            </div>
+            <svg class="stat-wave teal" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 34 C55 14 105 44 155 26 S250 10 300 36 V54 H0 Z" fill="currentColor"/></svg>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-body">
+                <div class="stat-icon pink">
+                    <iconify-icon icon="ph:prohibit-duotone"></iconify-icon>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Globally Inactive</span>
+                    <span class="stat-value" id="statInactiveAgents">0</span>
+                </div>
+            </div>
+            <svg class="stat-wave pink" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 28 C50 48 100 16 150 34 S230 12 300 30 V54 H0 Z" fill="currentColor"/></svg>
+        </div>
+    </div>
+
+    <div class="panel-card animate-up delay-2 page-panel acp-table-panel" id="acpModelsPanel">
+        <div class="panel-header acp-table-header">
+            <div>
+                <h3>Agent Models</h3>
+                <p>Global on/off for every model. Inactive models cannot be assigned to a user group.</p>
+            </div>
+            <div class="acp-table-actions">
+                <span class="acp-count-badge" id="acpModelsCountBadge">0</span>
+                <button class="btn-icon" type="button" id="refreshAgentsBtn" title="Refresh">
+                    <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
+                </button>
+            </div>
+        </div>
+        <div class="acp-table-wrap">
+            <table class="acp-table" id="modelsTable">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th class="acp-actions-col">Activate</th>
+                    </tr>
+                </thead>
+                <tbody id="modelsTableBody">
+                    <tr class="acp-empty-row">
+                        <td colspan="4">
+                            <div class="empty-state compact">
+                                <div class="empty-state-icon">
+                                    <iconify-icon icon="ph:robot-duotone"></iconify-icon>
+                                </div>
+                                <h4>No models yet</h4>
+                                <p>Agent models from agent master will appear here.</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="acp-toolbar panel-card animate-up delay-3">
+        <div class="acp-toolbar-left">
+            <div>
+                <h3 class="acp-section-title">Per user group</h3>
+                <p class="acp-section-subtitle">Enable active models for DG, SO, and SYSADMIN.</p>
+            </div>
+        </div>
+        <div class="acp-toolbar-right">
+            <div class="acp-group-tabs" role="tablist" aria-label="User groups" id="acpGroupTabs"></div>
+        </div>
+    </div>
+
+    <div class="panel-card animate-up delay-3 page-panel acp-table-panel" id="acpTablePanel">
+        <div class="panel-header acp-table-header">
+            <div>
+                <h3 id="acpTableTitle">Group assignments</h3>
+                <p id="acpTableSubtitle">Select a user group to manage agent access</p>
+            </div>
+            <span class="acp-count-badge" id="acpCountBadge">0</span>
+        </div>
+
+        <div class="acp-table-wrap">
+            <table class="acp-table" id="agentsTable">
+                <thead>
+                    <tr>
+                        <th>Agent</th>
+                        <th>Role</th>
+                        <th>Global</th>
+                        <th>For this group</th>
+                        <th class="acp-actions-col">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="agentsTableBody">
+                    <tr class="acp-empty-row">
+                        <td colspan="5">
+                            <div class="empty-state compact">
+                                <div class="empty-state-icon">
+                                    <iconify-icon icon="ph:robot-duotone"></iconify-icon>
+                                </div>
+                                <h4>No agents yet</h4>
+                                <p>Agent assignments will appear here once user groups are loaded.</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="~/css/agent-control-panel.css" asp-append-version="true" />
+    <script src="~/js/agent-control-panel.js" asp-append-version="true"></script>
+}
