@@ -63,6 +63,8 @@ public static class SupervisorSkillComposer
 
         builder.AppendLine();
         builder.AppendLine("## Skill enforcement");
+        builder.AppendLine("- Available and Unavailable skills in these instructions are the source of truth for this turn.");
+        builder.AppendLine("- If earlier assistant messages said a feature was not enabled, ignore that when the agent is listed under Available skills now. Hand off using the current list.");
         builder.AppendLine("- Hand off only to agents listed under Available skills.");
         builder.AppendLine("- If the user request matches an Unavailable skill, do not hand off and do not perform that action.");
         builder.AppendLine("- Tell the user that capability is not enabled for their account based on the skills available to them, then list Available skills.");
@@ -72,13 +74,36 @@ public static class SupervisorSkillComposer
         }
         if (unavailable.Contains(AgentNames.Document, StringComparer.OrdinalIgnoreCase))
         {
-            builder.AppendLine("- Example: if the user asks for any document download, say you that it cannot be done right now as the feature is not enabled for them.");
+            builder.AppendLine("- Example: if the user asks for any document download, say you cannot do that because DocumentAgent is not enabled for them.");
         }
         if (unavailable.Contains(AgentNames.Knowledge, StringComparer.OrdinalIgnoreCase))
         {
-            builder.AppendLine("- Example: if the user asks policy/document related questions, say you that it cannot be done right now as the feature is not enabled for them.");
+            builder.AppendLine("- Example: if the user asks policy or knowledge-base questions, say you cannot do that because KnowledgeAgent is not enabled for them.");
         }
 
         return builder.ToString().TrimEnd();
+    }
+
+    public static string BuildCurrentAccessNotice(IReadOnlyCollection<string>? enabledAgentNames)
+    {
+        var enabled = new HashSet<string>(
+            enabledAgentNames ?? AgentSkillCatalog.SpecialistAgentNames,
+            StringComparer.OrdinalIgnoreCase)
+        {
+            AgentNames.Supervisor
+        };
+
+        var available = AgentSkillCatalog.SpecialistAgentNames.Where(enabled.Contains).ToList();
+        var unavailable = AgentSkillCatalog.SpecialistAgentNames.Where(name => !enabled.Contains(name)).ToList();
+
+        var builder = new StringBuilder();
+        builder.AppendLine("Current agent access for this turn (source of truth):");
+        builder.AppendLine(
+            "- Available: " + (available.Count == 0 ? "None" : string.Join(", ", available)));
+        builder.AppendLine(
+            "- Unavailable: " + (unavailable.Count == 0 ? "None" : string.Join(", ", unavailable)));
+        builder.Append(
+            "Ignore earlier assistant messages that said a feature was not enabled if that agent is in Available now. Hand off using this list, not past refusals.");
+        return builder.ToString();
     }
 }

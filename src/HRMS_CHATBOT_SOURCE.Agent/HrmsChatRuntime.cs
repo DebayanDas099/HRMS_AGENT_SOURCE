@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using HRMS_CHATBOT_SOURCE.Agent.Skills;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
@@ -68,7 +69,8 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
             .ToList();
 
         var workflow = _workflowFactory.Build(enabled);
-        var reply = await ExecuteTurnAsync(workflow, snapshot, cancellationToken).ConfigureAwait(false);
+        var turnMessages = ApplyCurrentAccessOverride(snapshot, enabled);
+        var reply = await ExecuteTurnAsync(workflow, turnMessages, cancellationToken).ConfigureAwait(false);
 
         lock (history)
         {
@@ -129,5 +131,25 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
         }
 
         return (reply, lastSpeaker);
+    }
+
+    internal static IReadOnlyList<ChatMessage> ApplyCurrentAccessOverride(
+        IReadOnlyList<ChatMessage> history,
+        IReadOnlyCollection<string> enabledAgentNames)
+    {
+        var notice = new ChatMessage(
+            ChatRole.System,
+            SupervisorSkillComposer.BuildCurrentAccessNotice(enabledAgentNames));
+
+        if (history.Count == 0)
+        {
+            return [notice];
+        }
+
+        var turnMessages = new List<ChatMessage>(history.Count + 1);
+        turnMessages.AddRange(history.Take(history.Count - 1));
+        turnMessages.Add(notice);
+        turnMessages.Add(history[^1]);
+        return turnMessages;
     }
 }

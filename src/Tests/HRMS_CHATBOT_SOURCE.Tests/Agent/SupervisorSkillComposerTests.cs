@@ -1,6 +1,7 @@
 using HRMS_CHATBOT_SOURCE.Agent;
 using HRMS_CHATBOT_SOURCE.Agent.Skills;
 using HRMS_CHATBOT_SOURCE.Domain.Constants;
+using Microsoft.Extensions.AI;
 
 namespace HRMS_CHATBOT_SOURCE.Tests.Agent;
 
@@ -35,7 +36,32 @@ public class SupervisorSkillComposerTests
 
         Assert.Contains("`LeaveApplicationAgent`", ExtractSection(instructions, "Available skills"));
         Assert.Contains("- None.", ExtractSection(instructions, "Unavailable skills"));
+        Assert.Contains("hand off to `LeaveApplicationAgent`", instructions, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("source of truth for this turn", instructions, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("cannot apply leave", instructions, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ApplyCurrentAccessOverride_InsertsNoticeBeforeLatestUserMessage()
+    {
+        var history = new List<ChatMessage>
+        {
+            new(ChatRole.User, "I want to apply leave"),
+            new(ChatRole.Assistant, "That feature is not available."),
+            new(ChatRole.User, "I want to apply leave")
+        };
+
+        var turnMessages = HrmsChatRuntime.ApplyCurrentAccessOverride(
+            history,
+            [AgentNames.Supervisor, AgentNames.LeaveApplication, AgentNames.Document]);
+
+        Assert.Equal(4, turnMessages.Count);
+        Assert.Equal(ChatRole.System, turnMessages[2].Role);
+        Assert.Contains(AgentNames.LeaveApplication, turnMessages[2].Text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Available", turnMessages[2].Text, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(ChatRole.User, turnMessages[3].Role);
+        Assert.Equal("I want to apply leave", turnMessages[3].Text);
+        Assert.Equal("That feature is not available.", turnMessages[1].Text);
     }
 
     [Fact]
