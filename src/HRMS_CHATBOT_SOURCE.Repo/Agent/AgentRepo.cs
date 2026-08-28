@@ -256,7 +256,7 @@ public class AgentRepo : IAgentRepo
 
         sqlParams.AddRange(CreateOutputParams());
 
-        return new MSSQLResponse
+        var response = new MSSQLResponse
         {
             Data = await _sqlHelper.FetchData(new ExecuteDataSetRequest
             {
@@ -269,6 +269,8 @@ public class AgentRepo : IAgentRepo
             }),
             OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
         };
+
+        return response;
     }
 
     private static SqlParameter[] CreateOutputParams()
