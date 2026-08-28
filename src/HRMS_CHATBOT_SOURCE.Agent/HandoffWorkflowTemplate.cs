@@ -26,7 +26,12 @@ public sealed class HandoffWorkflowTemplate
 
     public AgentFrameworkBlueprint DescribeBlueprint()
     {
-        return new AgentFrameworkBlueprint
+        return DescribeBlueprint(enabledAgentNames: null);
+    }
+
+    public AgentFrameworkBlueprint DescribeBlueprint(IReadOnlyCollection<string>? enabledAgentNames)
+    {
+        var blueprint = new AgentFrameworkBlueprint
         {
             WorkflowName = AgentHandoffTopology.WorkflowName,
             StartAgent = AgentHandoffTopology.StartAgent,
@@ -60,6 +65,50 @@ public sealed class HandoffWorkflowTemplate
                 }
             ],
             Handoffs = AgentHandoffTopology.OutboundHandoffs
+        };
+
+        return FilterBlueprint(blueprint, enabledAgentNames);
+    }
+
+    internal static AgentFrameworkBlueprint FilterBlueprint(
+        AgentFrameworkBlueprint blueprint,
+        IReadOnlyCollection<string>? enabledAgentNames)
+    {
+        if (enabledAgentNames == null)
+        {
+            return blueprint;
+        }
+
+        var enabled = new HashSet<string>(enabledAgentNames, StringComparer.OrdinalIgnoreCase)
+        {
+            AgentNames.Supervisor
+        };
+
+        var participants = blueprint.Participants
+            .Where(participant => enabled.Contains(participant.Name))
+            .ToList();
+
+        var participantNames = participants
+            .Select(participant => participant.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var handoffs = blueprint.Handoffs
+            .Where(pair => participantNames.Contains(pair.Key))
+            .ToDictionary(
+                pair => pair.Key,
+                pair => (IReadOnlyList<string>)pair.Value
+                    .Where(target => participantNames.Contains(target))
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase);
+
+        return new AgentFrameworkBlueprint
+        {
+            WorkflowName = blueprint.WorkflowName,
+            StartAgent = AgentHandoffTopology.StartAgent,
+            ChatModel = blueprint.ChatModel,
+            EmbeddingModel = blueprint.EmbeddingModel,
+            Participants = participants,
+            Handoffs = handoffs
         };
     }
 

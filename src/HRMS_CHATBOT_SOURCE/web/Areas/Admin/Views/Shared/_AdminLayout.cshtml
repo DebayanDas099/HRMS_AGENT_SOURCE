@@ -55,6 +55,11 @@
                     <iconify-icon icon="ph:chats-circle-duotone"></iconify-icon>
                     <span>Conversations</span>
                 </a>
+                <a asp-area="Admin" asp-controller="AgentControlPanel" asp-action="Index"
+                   class="nav-item @(activeController == "AgentControlPanel" ? "active" : null)">
+                    <iconify-icon icon="ph:sliders-horizontal-duotone"></iconify-icon>
+                    <span>Agent Control</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
