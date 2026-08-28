@@ -1,6 +1,10 @@
 namespace HRMS_CHATBOT_SOURCE.RAG.Models;
 
-public class VectorSearchResult
+/// <summary>
+/// One chunk as written to the Lucene index. The index is a derived cache that can
+/// always be rebuilt from the Qdrant payload, which remains the source of truth.
+/// </summary>
+public class LexicalDocument
 {
     public long DocumentId { get; set; }
 
@@ -12,11 +16,11 @@ public class VectorSearchResult
 
     public string Content { get; set; } = string.Empty;
 
-    /// <summary>Heading breadcrumb from the chunker, used for citation context.</summary>
     public string SectionPath { get; set; } = string.Empty;
 
-    public float Score { get; set; }
+    public int StartOffset { get; set; }
 
-    /// <summary>Which retrievers surfaced this chunk: "dense", "lexical", or "hybrid".</summary>
-    public string MatchedBy { get; set; } = string.Empty;
+    public int EndOffset { get; set; }
+
+    public bool IsActive { get; set; } = true;
 }
