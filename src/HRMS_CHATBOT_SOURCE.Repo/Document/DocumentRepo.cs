@@ -203,6 +203,37 @@ public class DocumentRepo : IDocumentRepo
         };
     }
 
+    public async Task<MSSQLResponse?> DeleteAsync(long documentId, CancellationToken cancellationToken = default)
+    {
+        var sqlParams = new List<SqlParameter>
+        {
+            new()
+            {
+                ParameterName = "@dm_id",
+                DbType = DbType.Int64,
+                Direction = ParameterDirection.Input,
+                Value = documentId
+            }
+        };
+
+        sqlParams.AddRange(CreateOutputParams());
+
+        var rowsAffected = await _sqlHelper.ExecuteNonQuery(new ExecuteNonQueryRequest
+        {
+            CommandText = "[dbo].[Delete_Document_By_Id]",
+            CommandTimeout = SqlCommon.SQLCommandTimeOut,
+            CommandType = CommandType.StoredProcedure,
+            ConnectionProperties = _serviceContext.SQLConnectionModel,
+            Parameters = sqlParams.ToArray()
+        });
+
+        return new MSSQLResponse
+        {
+            RowsAffected = rowsAffected,
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+    }
+
     public async Task<MSSQLResponse?> GetByIdAsync(long documentId, CancellationToken cancellationToken = default)
     {
         var sqlParams = new List<SqlParameter>

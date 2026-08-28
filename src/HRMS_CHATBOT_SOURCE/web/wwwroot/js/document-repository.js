@@ -18,7 +18,8 @@
         bulkUpload: '/Admin/DocumentRepository/BulkUpload',
         updateActive: '/Admin/DocumentRepository/UpdateActive',
         ingestDocument: '/Admin/DocumentRepository/IngestDocument',
-        downloadDocument: '/Admin/DocumentRepository/Download'
+        downloadDocument: '/Admin/DocumentRepository/Download',
+        deleteDocument: '/Admin/DocumentRepository/Delete'
     };
 
     const elements = {
@@ -61,14 +62,27 @@
         cancelUploadModal: document.getElementById('cancelUploadModal'),
         confirmUploadModal: document.getElementById('confirmUploadModal'),
         docStatsGrid: document.getElementById('docStatsGrid'),
-        docTablePanel: document.getElementById('docTablePanel')
+        docTablePanel: document.getElementById('docTablePanel'),
+        deleteConfirmModal: document.getElementById('deleteConfirmModal'),
+        deleteConfirmBackdrop: document.getElementById('deleteConfirmBackdrop'),
+        deleteConfirmDocName: document.getElementById('deleteConfirmDocName'),
+        cancelDeleteBtn: document.getElementById('cancelDeleteBtn'),
+        confirmDeleteBtn: document.getElementById('confirmDeleteBtn'),
+        confirmDeleteBtnLabel: document.getElementById('confirmDeleteBtnLabel')
+    };
+
+    const toast = window.AdminToast || {
+        success: function () {},
+        error: function () {}
     };
 
     let searchTimer = null;
     let isUploading = false;
     let isIngesting = false;
+    let isDeleting = false;
     let activeCategory = 'Policy';
     let pendingUploadItems = [];
+    let pendingDelete = null;
 
     const paginationState = {
         Policy: { page: 1, totalCount: 0, totalPages: 0 },
@@ -154,8 +168,23 @@
             void confirmUploadFromModal();
         });
 
+        elements.cancelDeleteBtn?.addEventListener('click', closeDeleteConfirm);
+        elements.deleteConfirmBackdrop?.addEventListener('click', closeDeleteConfirm);
+        elements.confirmDeleteBtn?.addEventListener('click', function () {
+            void confirmDelete();
+        });
+
         document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && elements.uploadModal && !elements.uploadModal.hidden) {
+            if (event.key !== 'Escape') {
+                return;
+            }
+
+            if (elements.deleteConfirmModal && !elements.deleteConfirmModal.hidden) {
+                closeDeleteConfirm();
+                return;
+            }
+
+            if (elements.uploadModal && !elements.uploadModal.hidden) {
                 closeUploadModal();
             }
         });
@@ -469,6 +498,9 @@
                                 <iconify-icon icon="ph:download-simple-duotone"></iconify-icon>
                             </button>
                             ${renderStatusButton(doc.dm_id, isActive)}
+                            <button type="button" class="doc-action-btn doc-delete-btn" data-document-id="${doc.dm_id}" data-document-name="${escapeHtml(doc.dm_name || '')}" title="Delete document" aria-label="Delete document">
+                                <iconify-icon icon="ph:trash-duotone"></iconify-icon>
+                            </button>
                         </div>
                     </td>
                 </tr>`;
@@ -483,6 +515,12 @@
         elements.documentsTableBody.querySelectorAll('.doc-download-btn').forEach(function (button) {
             button.addEventListener('click', function () {
                 void downloadDocument(button);
+            });
+        });
+
+        elements.documentsTableBody.querySelectorAll('.doc-delete-btn').forEach(function (button) {
+            button.addEventListener('click', function () {
+                openDeleteConfirm(button);
             });
         });
 
@@ -990,6 +1028,96 @@
         } finally {
             loaders.setButtonLoading(button, false);
             button.disabled = false;
+        }
+    }
+
+    function openDeleteConfirm(button) {
+        const documentId = Number(button.getAttribute('data-document-id'));
+        if (!documentId || !elements.deleteConfirmModal) {
+            return;
+        }
+
+        pendingDelete = {
+            documentId: documentId,
+            documentName: button.getAttribute('data-document-name') || '',
+            triggerButton: button
+        };
+
+        if (elements.deleteConfirmDocName) {
+            elements.deleteConfirmDocName.textContent = pendingDelete.documentName;
+            elements.deleteConfirmDocName.hidden = !pendingDelete.documentName;
+        }
+
+        setDeleteButtonsBusy(false);
+        elements.deleteConfirmModal.hidden = false;
+        elements.deleteConfirmModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('doc-modal-open');
+        elements.cancelDeleteBtn?.focus();
+    }
+
+    function closeDeleteConfirm() {
+        if (!elements.deleteConfirmModal || isDeleting) {
+            return;
+        }
+
+        elements.deleteConfirmModal.hidden = true;
+        elements.deleteConfirmModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('doc-modal-open');
+
+        const trigger = pendingDelete?.triggerButton;
+        pendingDelete = null;
+
+        if (trigger && document.body.contains(trigger)) {
+            trigger.focus();
+        }
+    }
+
+    function setDeleteButtonsBusy(busy) {
+        if (elements.confirmDeleteBtnLabel) {
+            elements.confirmDeleteBtnLabel.textContent = busy ? 'Deleting...' : 'Yes, Delete';
+        }
+
+        if (elements.cancelDeleteBtn) {
+            elements.cancelDeleteBtn.disabled = busy;
+        }
+
+        loaders.setButtonLoading(elements.confirmDeleteBtn, busy);
+    }
+
+    async function confirmDelete() {
+        if (isDeleting || !pendingDelete) {
+            return;
+        }
+
+        const { documentId } = pendingDelete;
+
+        isDeleting = true;
+        setDeleteButtonsBusy(true);
+
+        try {
+            const response = await fetch(endpoints.deleteDocument, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json'
+                },
+                body: JSON.stringify({ document_id: documentId })
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error_message || 'Unable to delete document.');
+            }
+
+            isDeleting = false;
+            setDeleteButtonsBusy(false);
+            closeDeleteConfirm();
+            toast.success('Document deleted successfully.');
+            await refreshPage();
+        } catch (error) {
+            isDeleting = false;
+            setDeleteButtonsBusy(false);
+            toast.error(error.message || 'Unable to delete document.');
         }
     }
 

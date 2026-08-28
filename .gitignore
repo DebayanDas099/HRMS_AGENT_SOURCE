@@ -403,3 +403,7 @@ fabric.properties
 # Add pipeline file
 .github/workflows/*.yml
 .github/workflows
+# Runtime app data: Key Vault secret cache and the Lucene lexical index.
+# Both are locally generated and the secret cache must never be committed.
+**/App_Data/keyvault-secrets.json
+**/App_Data/lucene-index/

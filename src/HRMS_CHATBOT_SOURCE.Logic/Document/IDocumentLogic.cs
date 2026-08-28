@@ -25,5 +25,7 @@ public interface IDocumentLogic
 
     Task<IngestionResultDto?> IngestDocumentAsync(long documentId, CancellationToken cancellationToken = default);
 
+    Task<DeleteDocumentResponse?> DeleteDocumentAsync(long documentId, CancellationToken cancellationToken = default);
+
     Task<DocumentDownloadResult?> DownloadDocumentAsync(long documentId, CancellationToken cancellationToken = default);
 }

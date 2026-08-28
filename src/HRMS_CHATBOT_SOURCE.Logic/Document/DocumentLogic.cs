@@ -6,6 +6,7 @@ using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
 using HRMS_CHATBOT_SOURCE.Logic.Adapter;
 using HRMS_CHATBOT_SOURCE.Repo.Document;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace HRMS_CHATBOT_SOURCE.Logic;
 
@@ -18,15 +19,18 @@ public class DocumentLogic : IDocumentLogic
     private readonly IDocumentRepo _documentRepo;
     private readonly IDocumentBlobService _documentBlobService;
     private readonly IDocumentIngestionPipeline? _documentIngestionPipeline;
+    private readonly ILogger<DocumentLogic>? _logger;
 
     public DocumentLogic(
         IDocumentRepo documentRepo,
         IDocumentBlobService documentBlobService,
-        IDocumentIngestionPipeline? documentIngestionPipeline = null)
+        IDocumentIngestionPipeline? documentIngestionPipeline = null,
+        ILogger<DocumentLogic>? logger = null)
     {
         _documentRepo = documentRepo;
         _documentBlobService = documentBlobService;
         _documentIngestionPipeline = documentIngestionPipeline;
+        _logger = logger;
     }
 
     public async Task<DocumentStatisticsDto?> GetStatisticsAsync(CancellationToken cancellationToken = default)
@@ -153,6 +157,23 @@ public class DocumentLogic : IDocumentLogic
         var response = await _documentRepo.UpdateActiveAsync(documentId, isActive ? "Y" : "N", cancellationToken);
         DocumentAdapter.EnsureSuccess(response);
 
+        if (_documentIngestionPipeline != null)
+        {
+            try
+            {
+                // Best-effort, like the blob delete below: the database is the record of
+                // truth for active state, and a search-index sync failure is repairable.
+                await _documentIngestionPipeline.SetDocumentActiveAsync(documentId, isActive, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(
+                    ex,
+                    "Failed to sync active state to the search indexes for document {DocumentId}.",
+                    documentId);
+            }
+        }
+
         return new DocumentMstrDto
         {
             DocumentId = documentId,
@@ -175,6 +196,55 @@ public class DocumentLogic : IDocumentLogic
         }
 
         return await _documentIngestionPipeline.IngestAsync(documentId, cancellationToken);
+    }
+
+    public async Task<DeleteDocumentResponse?> DeleteDocumentAsync(
+        long documentId,
+        CancellationToken cancellationToken = default)
+    {
+        if (documentId <= 0)
+        {
+            throw new ValidationException("Invalid document id.");
+        }
+
+        var response = await _documentRepo.GetByIdAsync(documentId, cancellationToken);
+        var document = DocumentAdapter.MapById(response);
+        if (document == null)
+        {
+            throw new ValidationException("Document not found.");
+        }
+
+        var vectorsDeleted = false;
+        if (_documentIngestionPipeline != null)
+        {
+            vectorsDeleted = await _documentIngestionPipeline.RemoveFromIndexAsync(documentId, cancellationToken);
+        }
+
+        var blobDeleted = false;
+        if (!string.IsNullOrWhiteSpace(document.Path))
+        {
+            try
+            {
+                await _documentBlobService.DeleteAsync(document.Path, cancellationToken);
+                blobDeleted = true;
+            }
+            catch (Exception ex)
+            {
+                // A missing or already-removed blob must not block deleting the record.
+                _logger?.LogWarning(ex, "Blob delete failed for document {DocumentId} at {Path}.", documentId, document.Path);
+            }
+        }
+
+        var deleteResponse = await _documentRepo.DeleteAsync(documentId, cancellationToken);
+        DocumentAdapter.EnsureSuccess(deleteResponse);
+
+        return new DeleteDocumentResponse
+        {
+            DocumentId = documentId,
+            BlobDeleted = blobDeleted,
+            VectorsDeleted = vectorsDeleted,
+            Message = "Document deleted successfully."
+        };
     }
 
     public async Task<DocumentDownloadResult?> DownloadDocumentAsync(
