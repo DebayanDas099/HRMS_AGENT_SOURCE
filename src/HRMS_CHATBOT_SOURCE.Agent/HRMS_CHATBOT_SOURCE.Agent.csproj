@@ -19,6 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="HRMS_CHATBOT_SOURCE.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="Skills\**\skill.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

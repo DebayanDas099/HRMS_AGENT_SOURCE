@@ -27,8 +27,7 @@ public interface IAgentLogic
         string? createdBy,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<EnabledAgentDto>> GetEnabledAgentsAsync(
-        string? userGrpCode,
-        string? payroll,
+    Task<IReadOnlyList<EnabledAgentDto>> GetEnabledAgentsByMobileAsync(
+        string? mobile,
         CancellationToken cancellationToken = default);
 }

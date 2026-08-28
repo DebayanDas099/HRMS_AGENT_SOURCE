@@ -151,20 +151,16 @@ public class AgentLogic : IAgentLogic
         return updated;
     }
 
-    public async Task<IReadOnlyList<EnabledAgentDto>> GetEnabledAgentsAsync(
-        string? userGrpCode,
-        string? payroll,
+    public async Task<IReadOnlyList<EnabledAgentDto>> GetEnabledAgentsByMobileAsync(
+        string? mobile,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(userGrpCode))
+        if (string.IsNullOrWhiteSpace(mobile))
         {
-            throw new ValidationException("User group code is required.");
+            throw new ValidationException("Mobile number is required.");
         }
 
-        var response = await _agentRepo.GetEnabledAgentsAsync(
-            userGrpCode.Trim(),
-            NormalizePayroll(payroll, allowNull: false),
-            cancellationToken);
+        var response = await _agentRepo.GetEnabledAgentsByMobileAsync(mobile.Trim(), cancellationToken);
         var agents = AgentAdapter.MapEnabledAgents(response);
 
         if (!agents.Any(agent => string.Equals(agent.AgentName, AgentNames.Supervisor, StringComparison.OrdinalIgnoreCase)))
