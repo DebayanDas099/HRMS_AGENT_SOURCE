@@ -238,28 +238,19 @@ public class AgentRepo : IAgentRepo
         };
     }
 
-    public async Task<MSSQLResponse?> GetEnabledAgentsAsync(
-        string? userGrpCode,
-        string? payroll,
+    public async Task<MSSQLResponse?> GetEnabledAgentsByMobileAsync(
+        string? mobile,
         CancellationToken cancellationToken = default)
     {
         var sqlParams = new List<SqlParameter>
         {
             new()
             {
-                ParameterName = "@user_grp_code",
+                ParameterName = "@mobile",
                 DbType = DbType.String,
                 Direction = ParameterDirection.Input,
                 Size = 20,
-                Value = Utils.IIFStringOrDBNull(userGrpCode)
-            },
-            new()
-            {
-                ParameterName = "@user_payroll",
-                DbType = DbType.String,
-                Direction = ParameterDirection.Input,
-                Size = 20,
-                Value = Utils.IIFStringOrDBNull(payroll)
+                Value = Utils.IIFStringOrDBNull(mobile)
             }
         };
 
@@ -269,7 +260,7 @@ public class AgentRepo : IAgentRepo
         {
             Data = await _sqlHelper.FetchData(new ExecuteDataSetRequest
             {
-                CommandText = "[dbo].[Get_Enabled_Agents]",
+                CommandText = "[dbo].[Get_Enabled_Agents_By_Mobile]",
                 CommandTimeout = SqlCommon.SQLCommandTimeOut,
                 CommandType = CommandType.StoredProcedure,
                 ConnectionProperties = _serviceContext.SQLConnectionModel,

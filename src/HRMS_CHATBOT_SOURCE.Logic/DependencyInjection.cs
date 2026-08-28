@@ -1,5 +1,3 @@
-using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
-using HRMS_CHATBOT_SOURCE.Logic.Agent;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HRMS_CHATBOT_SOURCE.Logic;

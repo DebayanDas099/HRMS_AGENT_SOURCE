@@ -25,8 +25,7 @@ public interface IAgentRepo
         string? createdBy,
         CancellationToken cancellationToken = default);
 
-    Task<MSSQLResponse?> GetEnabledAgentsAsync(
-        string? userGrpCode,
-        string? payroll,
+    Task<MSSQLResponse?> GetEnabledAgentsByMobileAsync(
+        string? mobile,
         CancellationToken cancellationToken = default);
 }

@@ -1,9 +1,8 @@
-namespace HRMS_CHATBOT_SOURCE.Domain.Interfaces;
+namespace HRMS_CHATBOT_SOURCE.Logic;
 
 public interface IAgentAccessService
 {
     Task<IReadOnlyList<string>> GetEnabledAgentNamesAsync(
-        string? groupCode,
-        string? payroll = null,
+        string? mobile,
         CancellationToken cancellationToken = default);
 }
