@@ -70,6 +70,14 @@ public static class SupervisorSkillComposer
         {
             builder.AppendLine("- Example: if the user asks to apply leave, say you cannot apply leave because LeaveApplicationAgent is not enabled for them.");
         }
+        if (unavailable.Contains(AgentNames.Document, StringComparer.OrdinalIgnoreCase))
+        {
+            builder.AppendLine("- Example: if the user asks for any document download, say you that it cannot be done right now as the feature is not enabled for them.");
+        }
+        if (unavailable.Contains(AgentNames.Knowledge, StringComparer.OrdinalIgnoreCase))
+        {
+            builder.AppendLine("- Example: if the user asks policy/document related questions, say you that it cannot be done right now as the feature is not enabled for them.");
+        }
 
         return builder.ToString().TrimEnd();
     }

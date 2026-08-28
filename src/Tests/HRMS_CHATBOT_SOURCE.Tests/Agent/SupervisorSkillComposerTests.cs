@@ -73,6 +73,10 @@ public class SupervisorSkillComposerTests
             filtered.Participants,
             participant => string.Equals(participant.Name, AgentNames.Supervisor, StringComparison.OrdinalIgnoreCase));
         Assert.Contains("cannot apply leave", supervisor.Instructions, StringComparison.OrdinalIgnoreCase);
+
+        Assert.DoesNotContain(
+            HrmsHandoffWorkflowFactory.GetSupervisorHandoffTargets(filtered),
+            target => string.Equals(target, AgentNames.LeaveApplication, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string ExtractSection(string markdown, string heading)
