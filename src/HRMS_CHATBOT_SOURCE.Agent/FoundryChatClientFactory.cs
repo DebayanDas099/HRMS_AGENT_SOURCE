@@ -35,7 +35,14 @@ internal static class FoundryChatClientFactory
         var deployment = AzureFoundryEndpointResolver.ResolveChatDeployment(foundry, configuration);
         var clientOptions = new AzureOpenAIClientOptions(ResolveServiceVersion(apiVersion));
         var azureClient = new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(apiKey), clientOptions);
-        var chatClient = azureClient.GetChatClient(deployment).AsIChatClient();
+        // Function invocation middleware is what actually executes a tool the model asks
+        // for and feeds the result back. Without it, attached tools are advertised to the
+        // model and then silently never run.
+        var chatClient = azureClient.GetChatClient(deployment)
+            .AsIChatClient()
+            .AsBuilder()
+            .UseFunctionInvocation()
+            .Build();
 
         logger.LogInformation("HRMS chat client configured for deployment {Deployment}.", deployment);
         return chatClient;

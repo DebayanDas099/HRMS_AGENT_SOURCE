@@ -1,3 +1,4 @@
+using HRMS_CHATBOT_SOURCE.Agent.Tools;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Settings;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
@@ -19,6 +20,7 @@ public static class DependencyInjection
             sp.GetRequiredService<IOptions<AgentFoundrySettings>>(),
             sp.GetRequiredService<IConfiguration>(),
             sp.GetRequiredService<ILoggerFactory>().CreateLogger("FoundryChatClient")));
+        services.AddSingleton<PolicyKnowledgeTools>();
         services.AddSingleton<HrmsHandoffWorkflowFactory>();
         services.AddSingleton<IHrmsChatRuntime, HrmsChatRuntime>();
 
