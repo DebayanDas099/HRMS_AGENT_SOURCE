@@ -3,6 +3,7 @@ using HRMS_CHATBOT_SOURCE.Domain.Dto.Settings;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
 using MCC.Foundation.Guardrails.Configuration;
 using MCC.Foundation.Guardrails.Extensions;
+using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +29,11 @@ public static class DependencyInjection
         {
             options.FailOpen = false;
         });
+
+        // In-memory for now: this is the storage seam, not the fix for the "API instances
+        // must be stateless" requirement. CheckpointManager.CreateJson(ICheckpointStore<JsonElement>)
+        // is where a Cosmos-backed store plugs in later without touching any call site.
+        services.AddSingleton(CheckpointManager.CreateInMemory());
 
         services.AddSingleton<IChatClient>(sp => FoundryChatClientFactory.Create(
             sp,
