@@ -22,6 +22,7 @@ public class DocumentIngestionPipeline : IDocumentIngestionPipeline
     private readonly IDocumentChunkerService _documentChunkerService;
     private readonly IEmbeddingService _embeddingService;
     private readonly IVectorStoreService _vectorStoreService;
+    private readonly ILexicalIndex _lexicalIndex;
     private readonly IngestionSettings _ingestionSettings;
     private readonly VectorStoreSettings _vectorStoreSettings;
     private readonly ILogger<DocumentIngestionPipeline> _logger;
@@ -32,6 +33,7 @@ public class DocumentIngestionPipeline : IDocumentIngestionPipeline
         IDocumentChunkerService documentChunkerService,
         IEmbeddingService embeddingService,
         IVectorStoreService vectorStoreService,
+        ILexicalIndex lexicalIndex,
         IOptions<IngestionSettings> ingestionOptions,
         IOptions<VectorStoreSettings> vectorStoreOptions,
         ILogger<DocumentIngestionPipeline> logger)
@@ -41,6 +43,7 @@ public class DocumentIngestionPipeline : IDocumentIngestionPipeline
         _documentChunkerService = documentChunkerService;
         _embeddingService = embeddingService;
         _vectorStoreService = vectorStoreService;
+        _lexicalIndex = lexicalIndex;
         _ingestionSettings = ingestionOptions.Value;
         _vectorStoreSettings = vectorStoreOptions.Value;
         _logger = logger;
@@ -102,13 +105,18 @@ public class DocumentIngestionPipeline : IDocumentIngestionPipeline
                     cancellationToken);
             }
 
-            var chunkTexts = chunks
-                .Select(chunk => chunk.Content?.Trim())
-                .Where(content => !string.IsNullOrWhiteSpace(content))
-                .Cast<string>()
+            // Chunk metadata is carried through rather than projected away: the section
+            // breadcrumb is what turns a citation from a bare title into a locatable one.
+            var preparedChunks = chunks
+                .Where(chunk => !string.IsNullOrWhiteSpace(chunk.Content))
+                .Select(chunk => new PreparedChunk(
+                    chunk.Content.Trim(),
+                    chunk.SectionPath ?? string.Empty,
+                    chunk.StartOffset,
+                    chunk.EndOffset))
                 .ToList();
 
-            if (chunkTexts.Count == 0)
+            if (preparedChunks.Count == 0)
             {
                 return await CompleteAsync(
                     documentId,
@@ -119,35 +127,63 @@ public class DocumentIngestionPipeline : IDocumentIngestionPipeline
                     cancellationToken);
             }
 
-            await _vectorStoreService.DeleteByDocumentIdAsync(documentId, cancellationToken);
+            var chunkTexts = preparedChunks.Select(chunk => chunk.Content).ToList();
+
+            bool isDocPresent = await _vectorStoreService.ExistsByDocumentIdAsync(documentId, cancellationToken);
+            if (isDocPresent)
+            {
+                await _vectorStoreService.DeleteByDocumentIdAsync(documentId, cancellationToken);
+            }
 
             var embeddings = await _embeddingService.CreateEmbeddingsAsync(chunkTexts, cancellationToken);
             var vectorPoints = new List<VectorDocumentPoint>(embeddings.Count);
 
+            var lexicalDocuments = new List<LexicalDocument>(embeddings.Count);
+            var isActive = string.Equals(document.Active, "Y", StringComparison.OrdinalIgnoreCase);
+
             for (var index = 0; index < embeddings.Count; index++)
             {
+                var chunk = preparedChunks[index];
+
                 vectorPoints.Add(new VectorDocumentPoint
                 {
-                    PointId = BuildPointId(documentId, index),
                     DocumentId = documentId,
                     ChunkIndex = index,
                     Category = document.Category,
                     Title = document.Name,
-                    Content = chunkTexts[index],
+                    Content = chunk.Content,
                     BlobPath = document.Path,
-                    IsActive = true,
+                    SectionPath = chunk.SectionPath,
+                    StartOffset = chunk.StartOffset,
+                    EndOffset = chunk.EndOffset,
+                    IsActive = isActive,
                     Vector = embeddings[index]
+                });
+
+                lexicalDocuments.Add(new LexicalDocument
+                {
+                    DocumentId = documentId,
+                    ChunkIndex = index,
+                    Category = document.Category,
+                    Title = document.Name,
+                    Content = chunk.Content,
+                    SectionPath = chunk.SectionPath,
+                    StartOffset = chunk.StartOffset,
+                    EndOffset = chunk.EndOffset,
+                    IsActive = isActive
                 });
             }
 
             await _vectorStoreService.UpsertAsync(vectorPoints, cancellationToken);
+
+            var lexicalError = await IndexLexicalAsync(documentId, lexicalDocuments, cancellationToken);
 
             return await CompleteAsync(
                 documentId,
                 IngestionStatuses.Completed,
                 chunkTexts.Count,
                 vectorPoints.Count,
-                null,
+                lexicalError,
                 cancellationToken);
         }
         catch (Exception ex)
@@ -163,6 +199,77 @@ public class DocumentIngestionPipeline : IDocumentIngestionPipeline
                 cancellationToken);
         }
     }
+
+    public async Task<bool> RemoveFromIndexAsync(long documentId, CancellationToken cancellationToken = default)
+    {
+        if (documentId <= 0)
+        {
+            return false;
+        }
+
+        var isDocPresent = await _vectorStoreService.ExistsByDocumentIdAsync(documentId, cancellationToken);
+
+        if (isDocPresent)
+        {
+            await _vectorStoreService.DeleteByDocumentIdAsync(documentId, cancellationToken);
+            _logger.LogInformation("Removed vector index entries for document {DocumentId}.", documentId);
+        }
+
+        // Always attempted, even when the vector side was already clear, so a partially
+        // ingested document cannot leave chunks searchable through the lexical index.
+        try
+        {
+            await _lexicalIndex.DeleteDocumentAsync(documentId, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove document {DocumentId} from the lexical index.", documentId);
+        }
+
+        return isDocPresent;
+    }
+
+    public async Task SetDocumentActiveAsync(
+        long documentId,
+        bool isActive,
+        CancellationToken cancellationToken = default)
+    {
+        if (documentId <= 0)
+        {
+            return;
+        }
+
+        await _vectorStoreService.SetActiveAsync(documentId, isActive, cancellationToken);
+        await _lexicalIndex.SetActiveAsync(documentId, isActive, cancellationToken);
+    }
+
+    /// <summary>
+    /// Writes the chunks to the lexical index, returning a message when it fails.
+    /// <para>
+    /// The two stores are not written atomically. If Qdrant succeeded and Lucene did not,
+    /// the document genuinely is searchable — just not lexically — so reporting the
+    /// ingestion as Failed would misrepresent its state. It is recorded as a warning
+    /// instead, and <see cref="LuceneIndexRebuilder"/> repairs the divergence.
+    /// </para>
+    /// </summary>
+    private async Task<string?> IndexLexicalAsync(
+        long documentId,
+        IReadOnlyList<LexicalDocument> documents,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _lexicalIndex.ReplaceDocumentAsync(documentId, documents, cancellationToken);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lexical indexing failed for document {DocumentId}.", documentId);
+            return $"Indexed for vector search, but keyword indexing failed: {ex.Message}";
+        }
+    }
+
+    private sealed record PreparedChunk(string Content, string SectionPath, int StartOffset, int EndOffset);
 
     private async Task<IngestionResultDto> CompleteAsync(
         long documentId,
@@ -247,11 +354,6 @@ public class DocumentIngestionPipeline : IDocumentIngestionPipeline
         {
             throw new ValidationException(string.IsNullOrWhiteSpace(outputMsg) ? "Document operation failed." : outputMsg);
         }
-    }
-
-    private static string BuildPointId(long documentId, int chunkIndex)
-    {
-        return $"{documentId:D10}-{chunkIndex:D6}";
     }
 
     private static string ExtractFileName(string blobPath)

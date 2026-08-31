@@ -15,7 +15,7 @@
     <PackageReference Include="MCC.Foundation.Chunker" Version="0.0.1" />
     <PackageReference Include="MCC.Foundation.CosmosHelper" Version="0.0.2" />
     <PackageReference Include="MCC.Foundation.MSSQLHelper" Version="0.0.7" />
-    <PackageReference Include="MCC.Foundation.QdrantHelper" Version="0.0.1" />
+    <PackageReference Include="MCC.Foundation.QdrantHelper" Version="0.0.3" />
     <PackageReference Include="MCC.Foundation.StorageManager" Version="0.0.5" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="Qdrant.Client" Version="1.14.1" />

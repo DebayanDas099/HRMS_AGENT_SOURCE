@@ -1,0 +1,148 @@
+@{
+    ViewData["Title"] = "Agent Control Panel";
+    Layout = "_AdminLayout";
+}
+
+<div class="acp-page">
+    <div class="page-hero animate-up">
+        <div class="page-hero-content">
+            <p class="dashboard-greeting" id="acpStatus">Turn models on globally, then assign them to user groups.</p>
+            <h1 class="page-hero-title">Agent <span>Control Panel</span></h1>
+            <p class="page-hero-subtitle">Activate or deactivate agent models. Click an agent name to enable it for specific user groups. Deactivated models are removed from the workflow and cannot be used in prompts.</p>
+        </div>
+        <div class="page-hero-art" aria-hidden="true">
+            <div class="hero-cloud hero-cloud-1"></div>
+            <div class="hero-cloud hero-cloud-2"></div>
+            <div class="hero-folder">
+                <iconify-icon icon="ph:sliders-horizontal-duotone"></iconify-icon>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats-grid acp-stats-grid animate-up delay-1" id="acpStatsGrid">
+        <div class="stat-card">
+            <div class="stat-card-body">
+                <div class="stat-icon purple">
+                    <iconify-icon icon="ph:users-three-duotone"></iconify-icon>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">User Groups</span>
+                    <span class="stat-value" id="statTotalGroups">0</span>
+                </div>
+            </div>
+            <svg class="stat-wave purple" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 30 C45 10 95 50 150 28 S255 8 300 32 V54 H0 Z" fill="currentColor"/></svg>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-body">
+                <div class="stat-icon blue">
+                    <iconify-icon icon="ph:robot-duotone"></iconify-icon>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Total Models</span>
+                    <span class="stat-value" id="statTotalAgents">0</span>
+                </div>
+            </div>
+            <svg class="stat-wave blue" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 26 C60 46 110 12 160 30 S240 48 300 22 V54 H0 Z" fill="currentColor"/></svg>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-body">
+                <div class="stat-icon teal">
+                    <iconify-icon icon="ph:check-circle-duotone"></iconify-icon>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Globally Active</span>
+                    <span class="stat-value" id="statActiveAgents">0</span>
+                </div>
+            </div>
+            <svg class="stat-wave teal" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 34 C55 14 105 44 155 26 S250 10 300 36 V54 H0 Z" fill="currentColor"/></svg>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-body">
+                <div class="stat-icon pink">
+                    <iconify-icon icon="ph:prohibit-duotone"></iconify-icon>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Globally Inactive</span>
+                    <span class="stat-value" id="statInactiveAgents">0</span>
+                </div>
+            </div>
+            <svg class="stat-wave pink" viewBox="0 0 300 54" preserveAspectRatio="none"><path d="M0 28 C50 48 100 16 150 34 S230 12 300 30 V54 H0 Z" fill="currentColor"/></svg>
+        </div>
+    </div>
+
+    <div class="panel-card animate-up delay-2 page-panel acp-table-panel" id="acpModelsPanel">
+        <div class="panel-header acp-table-header">
+            <div>
+                <h3>Agent Models</h3>
+                <p>Check models to activate globally, then click Save. Click an agent name to assign user groups.</p>
+            </div>
+            <div class="acp-table-actions">
+                <span class="acp-count-badge" id="acpModelsCountBadge">0</span>
+                <button class="btn-gradient btn-sm" type="button" id="saveModelsBtn">Save</button>
+                <button class="btn-icon" type="button" id="refreshAgentsBtn" title="Refresh">
+                    <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
+                </button>
+            </div>
+        </div>
+        <div class="acp-table-wrap">
+            <table class="acp-table" id="modelsTable">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th class="acp-actions-col">Activate</th>
+                    </tr>
+                </thead>
+                <tbody id="modelsTableBody">
+                    <tr class="acp-empty-row">
+                        <td colspan="4">
+                            <div class="empty-state compact">
+                                <div class="empty-state-icon">
+                                    <iconify-icon icon="ph:robot-duotone"></iconify-icon>
+                                </div>
+                                <h4>No models yet</h4>
+                                <p>Agent models from agent master will appear here.</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="acp-modal" id="acpGroupModal" hidden aria-hidden="true">
+    <div class="acp-modal-backdrop" id="acpGroupModalBackdrop"></div>
+    <div class="acp-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="acpGroupModalTitle">
+        <div class="acp-modal-header">
+            <div>
+                <h3 id="acpGroupModalTitle">User group access</h3>
+                <p id="acpGroupModalSubtitle">Enable this agent for onroll and offroll user groups.</p>
+            </div>
+            <button class="btn-icon acp-modal-close" type="button" id="closeGroupModal" title="Close">
+                <iconify-icon icon="ph:x-duotone"></iconify-icon>
+            </button>
+        </div>
+        <div class="acp-modal-toolbar">
+            <div class="acp-search-box">
+                <iconify-icon icon="ph:magnifying-glass-duotone"></iconify-icon>
+                <input type="search" id="acpGroupSearch" placeholder="Search user group..." />
+            </div>
+            <label class="acp-select-all">
+                <input type="checkbox" id="acpEnableAll" />
+                <span>Enable all</span>
+            </label>
+            <span class="acp-selected-count" id="acpSelectedCount">0 selected</span>
+        </div>
+        <div class="acp-modal-body" id="acpGroupTree"></div>
+        <div class="acp-modal-footer">
+            <button class="btn-gradient btn-sm" type="button" id="doneGroupModal">Save</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="~/css/agent-control-panel.css" asp-append-version="true" />
+    <script src="~/js/agent-control-panel.js" asp-append-version="true"></script>
+}

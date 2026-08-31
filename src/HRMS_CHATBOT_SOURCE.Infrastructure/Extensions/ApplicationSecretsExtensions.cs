@@ -28,6 +28,10 @@ public static class ApplicationSecretsExtensions
         AddIfPresent(values, "Qdrant:ApiKey", secrets.QdrantApiKey);
         AddIfPresent(values, "Qdrant:Endpoint", secrets.QdrantEndpoint);
         AddIfPresent(values, "Qdrant:Host", secrets.QdrantEndpoint);
+        AddIfPresent(values, "AzureAiSearch:AdminKey", secrets.AzureAiSearchAdminKey);
+        AddIfPresent(values, "AzureAiSearch:Endpoint", secrets.AzureAiSearchEndpoint);
+        AddIfPresent(values, "AzureSpeech:ApiKey", secrets.AzureSpeechApiKey);
+        AddIfPresent(values, "AzureSpeech:Endpoint", secrets.AzureSpeechEndpoint);
 
         return values;
     }

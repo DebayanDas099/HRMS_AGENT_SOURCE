@@ -23,8 +23,7 @@ public static class AgentHandoffTopology
             ],
             [Domain.Constants.AgentNames.Document] =
             [
-                Domain.Constants.AgentNames.Supervisor,
-                Domain.Constants.AgentNames.Knowledge
+                Domain.Constants.AgentNames.Supervisor
             ],
             [Domain.Constants.AgentNames.Knowledge] =
             [

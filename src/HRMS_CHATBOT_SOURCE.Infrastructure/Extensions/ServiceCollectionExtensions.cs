@@ -13,9 +13,12 @@ using MCC.Foundation.MSSQLHelper.Extension;
 using MCC.Foundation.QdrantHelper;
 using MCC.Foundation.QdrantHelper.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.OpenApi.Models;
 namespace HRMS_CHATBOT_SOURCE.Infrastructure.Extensions;
 public static class ServiceCollectionExtensions
 {
@@ -156,7 +159,19 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddHrmsSwagger(this IServiceCollection services)
     {
         services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen();
+        services.AddSwaggerGen(options =>
+        {
+            options.SwaggerDoc("v1", new OpenApiInfo
+            {
+                Title = "HRMS Chatbot API",
+                Version = "v1",
+                Description = "Development APIs. Use Chat to send a turn through the Supervisor handoff workflow."
+            });
+            options.DocInclusionPredicate((_, apiDescription) =>
+                apiDescription.ActionDescriptor is ControllerActionDescriptor descriptor
+                && descriptor.ControllerTypeInfo.IsDefined(typeof(ApiControllerAttribute), inherit: true));
+        });
+        services.AddSwaggerGenNewtonsoftSupport();
         return services;
     }
 }

@@ -12,5 +12,11 @@ public class VectorSearchResult
 
     public string Content { get; set; } = string.Empty;
 
+    /// <summary>Heading breadcrumb from the chunker, used for citation context.</summary>
+    public string SectionPath { get; set; } = string.Empty;
+
     public float Score { get; set; }
+
+    /// <summary>Which retrievers surfaced this chunk: "dense", "lexical", or "hybrid".</summary>
+    public string MatchedBy { get; set; } = string.Empty;
 }
