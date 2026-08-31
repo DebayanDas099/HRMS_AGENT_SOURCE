@@ -1,33 +1,19 @@
 using System.Collections.Concurrent;
 using HRMS_CHATBOT_SOURCE.Agent.Skills;
+using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
+using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
+using MCC.Foundation.Guardrails;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
 namespace HRMS_CHATBOT_SOURCE.Agent;
 
-public interface IHrmsChatRuntime
-{
-    Task<HrmsChatTurnResult> RunAsync(
-        IReadOnlyCollection<string> enabledAgentNames,
-        string? conversationId,
-        string message,
-        CancellationToken cancellationToken = default);
-}
-
-public sealed class HrmsChatTurnResult
-{
-    public required string ConversationId { get; init; }
-
-    public required string Reply { get; init; }
-
-    public required IReadOnlyList<string> EnabledAgents { get; init; }
-
-    public string? LastSpeaker { get; init; }
-}
-
 public sealed class HrmsChatRuntime : IHrmsChatRuntime
 {
+    private const string GuardrailBlockedReply =
+        "I can't help with that request. If you need assistance, please contact HR directly.";
+
     private readonly HrmsHandoffWorkflowFactory _workflowFactory;
     private readonly ILogger<HrmsChatRuntime> _logger;
     private readonly ConcurrentDictionary<string, List<ChatMessage>> _sessions = new(StringComparer.OrdinalIgnoreCase);
@@ -40,7 +26,7 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
         _logger = logger;
     }
 
-    public async Task<HrmsChatTurnResult> RunAsync(
+    public async Task<ChatTurnResponse> RunAsync(
         IReadOnlyCollection<string> enabledAgentNames,
         string? conversationId,
         string message,
@@ -70,20 +56,49 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
 
         var workflow = _workflowFactory.Build(enabled);
         var turnMessages = ApplyCurrentAccessOverride(snapshot, enabled);
-        var reply = await ExecuteTurnAsync(workflow, turnMessages, cancellationToken).ConfigureAwait(false);
+        var reply = await RunTurnAsync(workflow, turnMessages, cancellationToken).ConfigureAwait(false);
 
         lock (history)
         {
             history.Add(new ChatMessage(ChatRole.Assistant, reply.Text));
         }
 
-        return new HrmsChatTurnResult
+        return new ChatTurnResponse
         {
             ConversationId = id,
             Reply = reply.Text,
             EnabledAgents = enabled,
             LastSpeaker = reply.LastSpeaker
         };
+    }
+
+    /// <summary>
+    /// Wraps turn execution so a guardrail block degrades into a safe reply instead of
+    /// an unhandled exception. The shared IChatClient is wrapped with UseMccGuardrails,
+    /// so every model call this turn makes - the routing turn, each specialist turn,
+    /// and the tool-result round-trip after PolicyKnowledgeTools returns - is screened
+    /// on both the way in and the way out; a violation throws from inside whichever
+    /// call tripped it, which can be anywhere in ExecuteTurnAsync.
+    /// </summary>
+    private async Task<(string Text, string? LastSpeaker)> RunTurnAsync(
+        Workflow workflow,
+        IReadOnlyList<ChatMessage> messages,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ExecuteTurnAsync(workflow, messages, cancellationToken).ConfigureAwait(false);
+        }
+        catch (GuardrailViolationException ex)
+        {
+            _logger.LogWarning(
+                "Guardrail blocked a chat turn: provider={Provider} severity={Severity} reason={Reason}",
+                ex.Provider,
+                ex.Severity,
+                ex.Reason);
+
+            return (GuardrailBlockedReply, null);
+        }
     }
 
     private async Task<(string Text, string? LastSpeaker)> ExecuteTurnAsync(

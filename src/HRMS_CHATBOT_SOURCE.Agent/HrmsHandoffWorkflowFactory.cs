@@ -1,4 +1,5 @@
 using HRMS_CHATBOT_SOURCE.Agent.Skills;
+using HRMS_CHATBOT_SOURCE.Agent.Tools;
 using HRMS_CHATBOT_SOURCE.Domain.Constants;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
@@ -14,11 +15,16 @@ public sealed class HrmsHandoffWorkflowFactory
 
     private readonly IChatClient _chatClient;
     private readonly HandoffWorkflowTemplate _blueprintTemplate;
+    private readonly PolicyKnowledgeTools _policyKnowledgeTools;
 
-    public HrmsHandoffWorkflowFactory(IChatClient chatClient, HandoffWorkflowTemplate blueprintTemplate)
+    public HrmsHandoffWorkflowFactory(
+        IChatClient chatClient,
+        HandoffWorkflowTemplate blueprintTemplate,
+        PolicyKnowledgeTools policyKnowledgeTools)
     {
         _chatClient = chatClient;
         _blueprintTemplate = blueprintTemplate;
+        _policyKnowledgeTools = policyKnowledgeTools;
     }
 
     public Workflow Build(IReadOnlyCollection<string> enabledAgentNames)
@@ -72,6 +78,8 @@ public sealed class HrmsHandoffWorkflowFactory
     private ChatClientAgent CreateAgent(AgentBlueprint participant)
     {
         var instructions = ResolveInstructions(participant);
+        var tools = ResolveTools(participant.Name);
+
         return (ChatClientAgent)_chatClient.AsAIAgent(new ChatClientAgentOptions
         {
             Id = participant.Name,
@@ -79,9 +87,29 @@ public sealed class HrmsHandoffWorkflowFactory
             Description = AgentSkillCatalog.Describe(participant.Name),
             ChatOptions = new ChatOptions
             {
-                Instructions = instructions
+                Instructions = instructions,
+                Tools = tools
             }
         });
+    }
+
+    /// <summary>
+    /// Tools are granted per agent, never globally. An agent that cannot reach a
+    /// capability cannot be talked into using it.
+    /// </summary>
+    private IList<AITool>? ResolveTools(string agentName)
+    {
+        if (string.Equals(agentName, AgentNames.Knowledge, StringComparison.OrdinalIgnoreCase))
+        {
+            return [AIFunctionFactory.Create(_policyKnowledgeTools.SearchPolicyDocumentsAsync)];
+        }
+
+        return null;
+    }
+
+    private static bool HasTools(string agentName)
+    {
+        return string.Equals(agentName, AgentNames.Knowledge, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ResolveInstructions(AgentBlueprint participant)
@@ -95,7 +123,8 @@ public sealed class HrmsHandoffWorkflowFactory
             ? File.ReadAllText(participant.SkillPath)
             : $"You are {participant.Name}.";
 
-        if (string.Equals(participant.Name, AgentNames.Supervisor, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(participant.Name, AgentNames.Supervisor, StringComparison.OrdinalIgnoreCase)
+            || HasTools(participant.Name))
         {
             return skill;
         }
