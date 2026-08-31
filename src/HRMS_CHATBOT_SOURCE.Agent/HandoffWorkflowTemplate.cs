@@ -74,32 +74,45 @@ public sealed class HandoffWorkflowTemplate
         AgentFrameworkBlueprint blueprint,
         IReadOnlyCollection<string>? enabledAgentNames)
     {
-        if (enabledAgentNames == null)
+        var catalogNames = enabledAgentNames
+            ?? blueprint.Participants.Select(participant => participant.Name).ToList();
+
+        IReadOnlyList<AgentBlueprint> participants = blueprint.Participants;
+        IReadOnlyDictionary<string, IReadOnlyList<string>> handoffs = blueprint.Handoffs;
+
+        if (enabledAgentNames != null)
         {
-            return blueprint;
+            var enabled = new HashSet<string>(enabledAgentNames, StringComparer.OrdinalIgnoreCase)
+            {
+                AgentNames.Supervisor
+            };
+
+            participants = blueprint.Participants
+                .Where(participant => enabled.Contains(participant.Name))
+                .ToList();
+
+            var participantNames = participants
+                .Select(participant => participant.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            handoffs = blueprint.Handoffs
+                .Where(pair => participantNames.Contains(pair.Key))
+                .ToDictionary(
+                    pair => pair.Key,
+                    pair => (IReadOnlyList<string>)pair.Value
+                        .Where(target => participantNames.Contains(target))
+                        .ToList(),
+                    StringComparer.OrdinalIgnoreCase);
         }
 
-        var enabled = new HashSet<string>(enabledAgentNames, StringComparer.OrdinalIgnoreCase)
-        {
-            AgentNames.Supervisor
-        };
+        var supervisorSkill = LoadSupervisorSkill(participants);
+        var supervisorInstructions = SupervisorSkillComposer.Compose(supervisorSkill, catalogNames);
 
-        var participants = blueprint.Participants
-            .Where(participant => enabled.Contains(participant.Name))
+        participants = participants
+            .Select(participant => string.Equals(participant.Name, AgentNames.Supervisor, StringComparison.OrdinalIgnoreCase)
+                ? CloneWithInstructions(participant, supervisorInstructions)
+                : participant)
             .ToList();
-
-        var participantNames = participants
-            .Select(participant => participant.Name)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var handoffs = blueprint.Handoffs
-            .Where(pair => participantNames.Contains(pair.Key))
-            .ToDictionary(
-                pair => pair.Key,
-                pair => (IReadOnlyList<string>)pair.Value
-                    .Where(target => participantNames.Contains(target))
-                    .ToList(),
-                StringComparer.OrdinalIgnoreCase);
 
         return new AgentFrameworkBlueprint
         {
@@ -127,6 +140,32 @@ public sealed class HandoffWorkflowTemplate
 
         return Task.FromResult(true);
     }
+
+    private static string LoadSupervisorSkill(IReadOnlyList<AgentBlueprint> participants)
+    {
+        var skillPath = participants
+            .FirstOrDefault(participant =>
+                string.Equals(participant.Name, AgentNames.Supervisor, StringComparison.OrdinalIgnoreCase))
+            ?.SkillPath;
+
+        if (string.IsNullOrWhiteSpace(skillPath) || !File.Exists(skillPath))
+        {
+            return string.Empty;
+        }
+
+        return File.ReadAllText(skillPath);
+    }
+
+    private static AgentBlueprint CloneWithInstructions(AgentBlueprint participant, string instructions)
+    {
+        return new AgentBlueprint
+        {
+            Name = participant.Name,
+            SkillPath = participant.SkillPath,
+            Role = participant.Role,
+            Instructions = instructions
+        };
+    }
 }
 
 public sealed class AgentFrameworkBlueprint
@@ -152,4 +191,6 @@ public sealed class AgentBlueprint
     public string SkillPath { get; init; } = string.Empty;
 
     public string Role { get; init; } = string.Empty;
+
+    public string Instructions { get; init; } = string.Empty;
 }

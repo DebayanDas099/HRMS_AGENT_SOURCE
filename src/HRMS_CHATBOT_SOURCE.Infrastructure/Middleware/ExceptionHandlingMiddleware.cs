@@ -163,8 +163,9 @@ public class ExceptionHandlingMiddleware
             return true;
         }
 
-        return context.Request.Path.StartsWithSegments("/Admin/Account/ValidateLogin")
-               && HttpMethods.IsPost(context.Request.Method);
+        return context.Request.Path.StartsWithSegments("/api")
+               || (context.Request.Path.StartsWithSegments("/Admin/Account/ValidateLogin")
+                   && HttpMethods.IsPost(context.Request.Method));
     }
 
     private static string? BuildErrorRedirectPath(HttpContext context, ErrorResponse errorResponse)

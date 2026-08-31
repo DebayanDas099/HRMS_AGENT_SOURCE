@@ -7,15 +7,24 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
+    <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
+    <PackageReference Include="Microsoft.Agents.AI" Version="1.19.0" />
+    <PackageReference Include="Microsoft.Agents.AI.Workflows" Version="1.19.0" />
+    <PackageReference Include="Microsoft.Extensions.AI" Version="10.9.0" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.9.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.Domain\HRMS_CHATBOT_SOURCE.Domain.csproj" />
     <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.RAG\HRMS_CHATBOT_SOURCE.RAG.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="HRMS_CHATBOT_SOURCE.Tests" />
   </ItemGroup>
 
   <ItemGroup>

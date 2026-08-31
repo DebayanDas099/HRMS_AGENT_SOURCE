@@ -1,7 +1,4 @@
-using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
-using HRMS_CHATBOT_SOURCE.Logic;
-
-namespace HRMS_CHATBOT_SOURCE.Logic.Agent;
+namespace HRMS_CHATBOT_SOURCE.Logic;
 
 public class AgentAccessService : IAgentAccessService
 {
@@ -13,11 +10,10 @@ public class AgentAccessService : IAgentAccessService
     }
 
     public async Task<IReadOnlyList<string>> GetEnabledAgentNamesAsync(
-        string? groupCode,
-        string? payroll = null,
+        string? mobile,
         CancellationToken cancellationToken = default)
     {
-        var agents = await _agentLogic.GetEnabledAgentsAsync(groupCode, payroll, cancellationToken);
+        var agents = await _agentLogic.GetEnabledAgentsByMobileAsync(mobile, cancellationToken);
         return agents
             .Select(agent => agent.AgentName)
             .Where(name => !string.IsNullOrWhiteSpace(name))
