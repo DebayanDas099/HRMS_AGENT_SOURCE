@@ -163,6 +163,16 @@ public class AgentLogic : IAgentLogic
         var response = await _agentRepo.GetEnabledAgentsByMobileAsync(mobile.Trim(), cancellationToken);
         var agents = AgentAdapter.MapEnabledAgents(response);
 
+        // An empty result must stay empty: it means either the number is not
+        // registered, or it is registered with nothing enabled for it. Either way
+        // the caller gets no access - never widen it by assuming Supervisor should
+        // always be reachable. Only when the number genuinely has some agent enabled
+        // do we ensure Supervisor (the router) is present alongside it.
+        if (agents.Count == 0)
+        {
+            return agents;
+        }
+
         if (!agents.Any(agent => string.Equals(agent.AgentName, AgentNames.Supervisor, StringComparison.OrdinalIgnoreCase)))
         {
             return agents
