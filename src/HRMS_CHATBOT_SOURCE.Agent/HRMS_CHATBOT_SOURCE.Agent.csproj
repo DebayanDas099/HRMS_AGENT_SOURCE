@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.Domain\HRMS_CHATBOT_SOURCE.Domain.csproj" />
     <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.RAG\HRMS_CHATBOT_SOURCE.RAG.csproj" />
+    <ProjectReference Include="..\HRMS_CHATBOT_SOURCE.Logic\HRMS_CHATBOT_SOURCE.Logic.csproj" />
   </ItemGroup>
 
   <ItemGroup>
