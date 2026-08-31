@@ -10,6 +10,8 @@ public static class DependencyInjection
         services.AddScoped<IDocumentLogic, DocumentLogic>();
         services.AddScoped<IAgentLogic, AgentLogic>();
         services.AddScoped<IAgentAccessService, AgentAccessService>();
+        services.AddScoped<IChatLogic, ChatLogic>();
+        services.AddScoped<ILeaveLogic, LeaveLogic>();
         return services;
     }
 }
