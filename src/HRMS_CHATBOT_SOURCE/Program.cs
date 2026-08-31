@@ -7,6 +7,7 @@ using HRMS_CHATBOT_SOURCE.RAG;
 using HRMS_CHATBOT_SOURCE.Repo.Admin;
 using HRMS_CHATBOT_SOURCE.Repo.Agent;
 using HRMS_CHATBOT_SOURCE.Repo.Document;
+using HRMS_CHATBOT_SOURCE.Repo.Leave;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -32,6 +33,7 @@ builder.Services
 builder.Services.AddScoped<IUserProfileRepo, UserProfileRepo>();
 builder.Services.AddScoped<IDocumentRepo, DocumentRepo>();
 builder.Services.AddScoped<IAgentRepo, AgentRepo>();
+builder.Services.AddScoped<ILeaveRepo, LeaveRepo>();
 builder.Services.AddLogic();
 builder.Services.AddRag(builder.Configuration);
 builder.Services.AddHrmsAgentFramework(builder.Configuration);
