@@ -264,6 +264,55 @@ public class DocumentRepo : IDocumentRepo
         };
     }
 
+    public async Task<MSSQLResponse?> GetBySimilarityAsync(
+        string searchText,
+        int minScore,
+        int topCount,
+        CancellationToken cancellationToken = default)
+    {
+        var sqlParams = new List<SqlParameter>
+        {
+            new()
+            {
+                ParameterName = "@search_text",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 500,
+                Value = Utils.IIFStringOrDBNull(searchText)
+            },
+            new()
+            {
+                ParameterName = "@min_score",
+                DbType = DbType.Int32,
+                Direction = ParameterDirection.Input,
+                Value = minScore
+            },
+            new()
+            {
+                ParameterName = "@top_count",
+                DbType = DbType.Int32,
+                Direction = ParameterDirection.Input,
+                Value = topCount
+            }
+        };
+
+        sqlParams.AddRange(CreateOutputParams());
+
+        return new MSSQLResponse
+        {
+            Data = await _sqlHelper.FetchData(new ExecuteDataSetRequest
+            {
+                CommandText = "[dbo].[Get_Document_Mstr_By_Similarity]",
+                CommandTimeout = SqlCommon.SQLCommandTimeOut,
+                CommandType = CommandType.StoredProcedure,
+                ConnectionProperties = _serviceContext.SQLConnectionModel,
+                IsMultipleTables = true,
+                Parameters = sqlParams.ToArray()
+            }),
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+    }
+
     public async Task<MSSQLResponse?> UpdateIngestionAsync(
         long documentId,
         string ingestionStatus,

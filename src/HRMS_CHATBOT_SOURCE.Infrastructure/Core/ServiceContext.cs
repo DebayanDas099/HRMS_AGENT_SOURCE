@@ -1,4 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Security.Claims;
 using HRMS_CHATBOT_SOURCE.Domain.Constants;
@@ -30,7 +29,6 @@ public class ServiceContext : IServiceContext
         RequestTimeout = configuration.GetValue("AppSettings:RequestTimeoutInSecond", 60);
         ContentRootPath = hostingEnvironment.ContentRootPath;
         RequestTraceId = RequestContext?.TraceIdentifier;
-        CurrentUser = BuildCurrentUser(RequestContext);
         IpAddress = ResolveClientIpAddress(RequestContext);
         HostUrl = ResolveHostUrl(RequestContext);
         SQLConnectionModel = BuildSqlConnectionModel(configuration, applicationSecrets);
@@ -44,50 +42,21 @@ public class ServiceContext : IServiceContext
     public int RequestTimeout { get; }
     public string ContentRootPath { get; }
     public string? RequestTraceId { get; }
-    public CurrentUserContext? CurrentUser { get; }
+    public CurrentUserContext? CurrentUser => BuildCurrentUser(RequestContext);
     public string? IpAddress { get; }
     public string? HostUrl { get; }
     public MSSQLConnectionModel SQLConnectionModel { get; }
 
     public static string? TryGetUserIdFromHttpContext(HttpContext? context)
     {
-        if (context == null)
+        if (context?.User?.Identity?.IsAuthenticated != true)
         {
             return null;
         }
 
-        var claimUserId = context.User.FindFirst("UserId")?.Value
+        return context.User.FindFirst("UserId")?.Value
             ?? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? context.User.FindFirst(AdminClaimTypes.EmployeeId)?.Value;
-
-        if (!string.IsNullOrWhiteSpace(claimUserId))
-        {
-            return claimUserId;
-        }
-
-        var token = ReadTokenFromHttpContext(context);
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            return null;
-        }
-
-        try
-        {
-            var handler = new JwtSecurityTokenHandler();
-            if (!handler.CanReadToken(token))
-            {
-                return null;
-            }
-
-            var jwt = handler.ReadJwtToken(token);
-            return jwt.Claims.FirstOrDefault(c =>
-                string.Equals(c.Type, "UserId", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(c.Type, ClaimTypes.NameIdentifier, StringComparison.OrdinalIgnoreCase))?.Value;
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     public static string? GetClientIpAddress(HttpContext? context)
@@ -136,7 +105,9 @@ public class ServiceContext : IServiceContext
                 ?? context.User.FindFirst(AdminClaimTypes.GroupCode)?.Value,
             Department = context.User.FindFirst(AdminClaimTypes.Department)?.Value,
             Designation = context.User.FindFirst(AdminClaimTypes.Designation)?.Value,
-            IsAdmin = context.User.FindFirst(AdminClaimTypes.IsAdmin)?.Value
+            IsAdmin = context.User.FindFirst(AdminClaimTypes.IsAdmin)?.Value,
+            Email = context.User.FindFirst(AdminClaimTypes.Email)?.Value,
+            Mobile = context.User.FindFirst(AdminClaimTypes.Mobile)?.Value
         };
     }
 
@@ -161,44 +132,6 @@ public class ServiceContext : IServiceContext
             ConnectionRetryInterval = 2,
             ConnectionTimeout = Common.SQLCommandTimeOut
         };
-    }
-
-    private static string? NormalizeStoredToken(string? token)
-    {
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            return null;
-        }
-
-        token = token.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
-            ? token[7..].Trim()
-            : token.Trim();
-
-        var suffixIndex = token.IndexOf("|@|", StringComparison.Ordinal);
-        return suffixIndex > 0 ? token[..suffixIndex] : token;
-    }
-
-    private static string? ReadTokenFromHttpContext(HttpContext context)
-    {
-        if (context.Request.Headers.TryGetValue("hrms_admin_token", out var headerToken)
-            && !string.IsNullOrWhiteSpace(headerToken))
-        {
-            return NormalizeStoredToken(headerToken.ToString());
-        }
-
-        if (context.Request.Headers.TryGetValue("Authorization", out var authorization)
-            && !string.IsNullOrWhiteSpace(authorization))
-        {
-            return NormalizeStoredToken(authorization.ToString());
-        }
-
-        if (context.Request.Cookies.TryGetValue("hrms_admin_token", out var cookieToken)
-            && !string.IsNullOrWhiteSpace(cookieToken))
-        {
-            return NormalizeStoredToken(cookieToken);
-        }
-
-        return null;
     }
 
     private static string? ResolveClientIpAddress(HttpContext? context) => GetClientIpAddress(context);

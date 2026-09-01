@@ -28,4 +28,10 @@ public interface IDocumentLogic
     Task<DeleteDocumentResponse?> DeleteDocumentAsync(long documentId, CancellationToken cancellationToken = default);
 
     Task<DocumentDownloadResult?> DownloadDocumentAsync(long documentId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DocumentSimilarityMatchDto>> GetDocumentMatchesBySimilarityAsync(
+        string searchText,
+        int minScore = 65,
+        int topCount = 5,
+        CancellationToken cancellationToken = default);
 }

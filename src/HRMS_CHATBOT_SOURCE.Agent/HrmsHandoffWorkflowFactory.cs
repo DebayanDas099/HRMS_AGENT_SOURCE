@@ -1,9 +1,11 @@
 using HRMS_CHATBOT_SOURCE.Agent.Skills;
 using HRMS_CHATBOT_SOURCE.Agent.Tools;
 using HRMS_CHATBOT_SOURCE.Domain.Constants;
+using HRMS_CHATBOT_SOURCE.Logic.Common;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace HRMS_CHATBOT_SOURCE.Agent;
 
@@ -17,17 +19,26 @@ public sealed class HrmsHandoffWorkflowFactory
     private readonly HandoffWorkflowTemplate _blueprintTemplate;
     private readonly PolicyKnowledgeTools _policyKnowledgeTools;
     private readonly LeaveApplicationTools _leaveApplicationTools;
+    private readonly IDocumentKernelFunctionCatalog _documentKernelFunctionCatalog;
+    private readonly RelativeDateParsingTools _relativeDateParsingTools;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public HrmsHandoffWorkflowFactory(
         IChatClient chatClient,
         HandoffWorkflowTemplate blueprintTemplate,
         PolicyKnowledgeTools policyKnowledgeTools,
-        LeaveApplicationTools leaveApplicationTools)
+        LeaveApplicationTools leaveApplicationTools,
+        IDocumentKernelFunctionCatalog documentKernelFunctionCatalog,
+        RelativeDateParsingTools relativeDateParsingTools,
+        IServiceScopeFactory scopeFactory)
     {
         _chatClient = chatClient;
         _blueprintTemplate = blueprintTemplate;
         _policyKnowledgeTools = policyKnowledgeTools;
         _leaveApplicationTools = leaveApplicationTools;
+        _documentKernelFunctionCatalog = documentKernelFunctionCatalog;
+        _relativeDateParsingTools = relativeDateParsingTools;
+        _scopeFactory = scopeFactory;
     }
 
     public Workflow Build(IReadOnlyCollection<string> enabledAgentNames)
@@ -104,15 +115,32 @@ public sealed class HrmsHandoffWorkflowFactory
     {
         if (string.Equals(agentName, AgentNames.Knowledge, StringComparison.OrdinalIgnoreCase))
         {
-            return [AIFunctionFactory.Create(_policyKnowledgeTools.SearchPolicyDocumentsAsync)];
+            return 
+            [
+                AIFunctionFactory.Create(_policyKnowledgeTools.SearchPolicyDocumentsAsync)
+            ];
         }
 
         if (string.Equals(agentName, AgentNames.LeaveApplication, StringComparison.OrdinalIgnoreCase))
         {
             return
             [
+                AIFunctionFactory.Create(_relativeDateParsingTools.ParseRelativeDateRange),
                 AIFunctionFactory.Create(_leaveApplicationTools.GetLeaveStatusAsync),
                 AIFunctionFactory.Create(_leaveApplicationTools.ValidateAndApplyLeaveAsync)
+            ];
+        }
+
+        if (string.Equals(agentName, AgentNames.Document, StringComparison.OrdinalIgnoreCase))
+        {
+            return _documentKernelFunctionCatalog.GetTools().ToList();
+        }
+
+        if (string.Equals(agentName, AgentNames.Supervisor, StringComparison.OrdinalIgnoreCase))
+        {
+            return 
+            [
+                AIFunctionFactory.Create(_relativeDateParsingTools.ParseRelativeDateRange)
             ];
         }
 
@@ -122,19 +150,21 @@ public sealed class HrmsHandoffWorkflowFactory
     private static bool HasTools(string agentName)
     {
         return string.Equals(agentName, AgentNames.Knowledge, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(agentName, AgentNames.LeaveApplication, StringComparison.OrdinalIgnoreCase);
+            || string.Equals(agentName, AgentNames.LeaveApplication, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(agentName, AgentNames.Document, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string ResolveInstructions(AgentBlueprint participant)
+    private string ResolveInstructions(AgentBlueprint participant)
     {
-        if (!string.IsNullOrWhiteSpace(participant.Instructions))
-        {
-            return participant.Instructions;
-        }
+        var skill = !string.IsNullOrWhiteSpace(participant.Instructions)
+                ? participant.Instructions
+                : File.Exists(participant.SkillPath)
+                    ? File.ReadAllText(participant.SkillPath)
+                    : $"You are {participant.Name}.";
 
-        var skill = File.Exists(participant.SkillPath)
-            ? File.ReadAllText(participant.SkillPath)
-            : $"You are {participant.Name}.";
+        using var scope = _scopeFactory.CreateScope();
+        var commonLogic = scope.ServiceProvider.GetRequiredService<ICommonLogic>();
+        skill = AgentInstructionComposer.PrependRuntimeContext(skill, commonLogic.GetReferenceDateTime());
 
         if (string.Equals(participant.Name, AgentNames.Supervisor, StringComparison.OrdinalIgnoreCase)
             || HasTools(participant.Name))

@@ -51,6 +51,20 @@ public class AdminLogic : IAdminLogic
         var dbResponse = await _userProfileRepo.ValidateAdminLoginAsync(request, cancellationToken);
         var user = AdminAuthAdapter.MapValidateAdminLoginResponse(dbResponse);
 
+        if (string.IsNullOrWhiteSpace(user.Mobile))
+        {
+            try
+            {
+                user.Mobile = await _userProfileRepo
+                    .GetUserMobileByUserIdAsync(user.UserId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                // Optional lookup SP may not be deployed yet; login should still succeed.
+            }
+        }
+
         if (!user.IsActive)
         {
             throw new ValidationException("Your account is inactive. Please contact the administrator.");
@@ -81,7 +95,9 @@ public class AdminLogic : IAdminLogic
                 FullName = user.FullName,
                 Department = user.Department,
                 Designation = user.Designation,
-                GroupCode = user.GroupCode
+                GroupCode = user.GroupCode,
+                Email = user.Email,
+                Mobile = user.Mobile
             }
         };
     }

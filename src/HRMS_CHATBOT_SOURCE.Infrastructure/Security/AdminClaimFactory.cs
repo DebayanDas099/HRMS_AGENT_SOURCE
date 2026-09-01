@@ -39,5 +39,10 @@ public static class AdminClaimFactory
         {
             yield return new Claim(AdminClaimTypes.Email, user.Email);
         }
+
+        if (!string.IsNullOrWhiteSpace(user.Mobile))
+        {
+            yield return new Claim(AdminClaimTypes.Mobile, user.Mobile);
+        }
     }
 }
