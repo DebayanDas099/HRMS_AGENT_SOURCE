@@ -274,6 +274,38 @@ public class DocumentLogic : IDocumentLogic
         };
     }
 
+    public async Task<IReadOnlyList<DocumentSimilarityMatchDto>> GetDocumentMatchesBySimilarityAsync(
+        string searchText,
+        int minScore = 65,
+        int topCount = 5,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            return [];
+        }
+
+        var normalizedScore = minScore switch
+        {
+            < 0 => 0,
+            > 100 => 100,
+            _ => minScore
+        };
+        var normalizedTopCount = topCount switch
+        {
+            < 1 => 1,
+            > 10 => 10,
+            _ => topCount
+        };
+
+        var response = await _documentRepo.GetBySimilarityAsync(
+            searchText.Trim(),
+            normalizedScore,
+            normalizedTopCount,
+            cancellationToken);
+        return DocumentAdapter.MapSimilarityMatches(response);
+    }
+
     private static void ValidateTitle(string? title)
     {
         if (string.IsNullOrWhiteSpace(title))
