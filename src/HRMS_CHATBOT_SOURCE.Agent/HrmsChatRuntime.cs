@@ -44,6 +44,7 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
         IReadOnlyCollection<string> enabledAgentNames,
         string? conversationId,
         string message,
+        string? authenticatedMobile = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(message))
@@ -69,7 +70,7 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
             .ToList();
 
         var workflow = _workflowFactory.Build(enabled);
-        var turnMessages = ApplyCurrentAccessOverride(snapshot, enabled);
+        var turnMessages = ApplyCurrentAccessOverride(snapshot, enabled, authenticatedMobile);
         var reply = await RunTurnAsync(workflow, turnMessages, id, cancellationToken).ConfigureAwait(false);
 
         lock (history)
@@ -197,11 +198,17 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
 
     internal static IReadOnlyList<ChatMessage> ApplyCurrentAccessOverride(
         IReadOnlyList<ChatMessage> history,
-        IReadOnlyCollection<string> enabledAgentNames)
+        IReadOnlyCollection<string> enabledAgentNames,
+        string? authenticatedMobile = null)
     {
-        var notice = new ChatMessage(
-            ChatRole.System,
-            SupervisorSkillComposer.BuildCurrentAccessNotice(enabledAgentNames));
+        var noticeText = SupervisorSkillComposer.BuildCurrentAccessNotice(enabledAgentNames);
+        if (!string.IsNullOrWhiteSpace(authenticatedMobile))
+        {
+            noticeText += Environment.NewLine + Environment.NewLine
+                + SupervisorSkillComposer.BuildAuthenticatedEmployeeNotice(authenticatedMobile);
+        }
+
+        var notice = new ChatMessage(ChatRole.System, noticeText);
 
         if (history.Count == 0)
         {

@@ -31,6 +31,9 @@ public class AuthenticatedAdminUser
     [JsonProperty("email")]
     public string? Email { get; set; }
 
+    [JsonProperty("mobile")]
+    public string? Mobile { get; set; }
+
     [JsonProperty("active")]
     public string Active { get; set; } = "N";
 

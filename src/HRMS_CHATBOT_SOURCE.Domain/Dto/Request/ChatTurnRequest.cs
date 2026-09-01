@@ -5,9 +5,8 @@ namespace HRMS_CHATBOT_SOURCE.Domain.Dto.Request;
 
 public class ChatTurnRequest
 {
-    [Required(ErrorMessage = "Mobile number is required.")]
     [JsonProperty("mobile")]
-    public string Mobile { get; set; } = "1234567890";
+    public string? Mobile { get; set; }
 
     [Required(ErrorMessage = "Message is required.")]
     [JsonProperty("message")]

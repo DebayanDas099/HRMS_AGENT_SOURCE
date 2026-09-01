@@ -53,15 +53,26 @@ public class SupervisorSkillComposerTests
 
         var turnMessages = HrmsChatRuntime.ApplyCurrentAccessOverride(
             history,
-            [AgentNames.Supervisor, AgentNames.LeaveApplication, AgentNames.Document]);
+            [AgentNames.Supervisor, AgentNames.LeaveApplication, AgentNames.Document],
+            authenticatedMobile: "1234567890");
 
         Assert.Equal(4, turnMessages.Count);
         Assert.Equal(ChatRole.System, turnMessages[2].Role);
         Assert.Contains(AgentNames.LeaveApplication, turnMessages[2].Text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Available", turnMessages[2].Text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("1234567890", turnMessages[2].Text, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(ChatRole.User, turnMessages[3].Role);
         Assert.Equal("I want to apply leave", turnMessages[3].Text);
         Assert.Equal("That feature is not available.", turnMessages[1].Text);
+    }
+
+    [Fact]
+    public void BuildAuthenticatedEmployeeNotice_IncludesMobile()
+    {
+        var notice = SupervisorSkillComposer.BuildAuthenticatedEmployeeNotice("1234567890");
+
+        Assert.Contains("1234567890", notice);
+        Assert.Contains("do not ask", notice, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

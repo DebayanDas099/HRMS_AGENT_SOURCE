@@ -91,3 +91,51 @@
         <p>Employee chat sessions will appear here once users start interacting with the chatbot.</p>
     </div>
 </div>
+
+<!-- TEST-ONLY CHAT WIDGET START: remove this block + test-chat-widget.css/js to drop the dev chat panel -->
+<div class="panel-card animate-up delay-3 test-chat-panel">
+    <div class="panel-header">
+        <div>
+            <h3>Test Chat</h3>
+            <p>Exercise the live chat API from the browser (dev only)</p>
+        </div>
+        <span class="test-chat-badge">
+            <iconify-icon icon="ph:flask-duotone"></iconify-icon>
+            Dev only
+        </span>
+    </div>
+
+    <div class="test-chat-toolbar">
+        <button class="btn-gradient btn-sm test-chat-btn" type="button" id="testChatBeginBtn">
+            <iconify-icon icon="ph:chat-circle-dots-duotone"></iconify-icon>
+            Begin New Chat
+        </button>
+    </div>
+
+    <div class="test-chat-body" id="testChatPanel" hidden>
+        <div class="test-chat-meta-row">
+            <div class="test-chat-field">
+                <label for="testChatMobile">Mobile number</label>
+                <input type="text" id="testChatMobile" placeholder="Enter mobile number" autocomplete="off" />
+            </div>
+            <span class="test-chat-conversation-id" id="testChatUserInfo"></span>
+            <span class="test-chat-conversation-id" id="testChatConversationId">conversation_id: (new)</span>
+        </div>
+
+        <div class="test-chat-log" id="testChatLog" aria-live="polite"></div>
+
+        <div class="test-chat-compose">
+            <textarea id="testChatInput" rows="2" placeholder="Type a message..."></textarea>
+            <button class="btn-gradient btn-sm test-chat-btn test-chat-send-btn" type="button" id="testChatSendBtn">
+                <iconify-icon icon="ph:paper-plane-right-duotone"></iconify-icon>
+                Send
+            </button>
+        </div>
+    </div>
+</div>
+<!-- TEST-ONLY CHAT WIDGET END -->
+
+@section Scripts {
+    <link rel="stylesheet" href="~/css/test-chat-widget.css" asp-append-version="true" />
+    <script src="~/js/test-chat-widget.js" asp-append-version="true"></script>
+}

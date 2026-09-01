@@ -1,4 +1,4 @@
-using HRMS_CHATBOT_SOURCE.Infrastructure.Security;
+using HRMS_CHATBOT_SOURCE.Domain.Constants;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -9,7 +9,17 @@ public class AdminAuthorizeAttribute : Attribute, IAuthorizationFilter
 {
     public void OnAuthorization(AuthorizationFilterContext context)
     {
-        if (!AdminAuthHelper.IsAuthenticatedAdmin(context.HttpContext))
+        var user = context.HttpContext.User;
+        if (user?.Identity?.IsAuthenticated != true)
+        {
+            context.Result = new RedirectToActionResult("Login", "Account", new { area = "Admin" });
+            return;
+        }
+
+        if (!string.Equals(
+                user.FindFirst(AdminClaimTypes.IsAdmin)?.Value,
+                "Y",
+                StringComparison.OrdinalIgnoreCase))
         {
             context.Result = new RedirectToActionResult("Login", "Account", new { area = "Admin" });
         }
