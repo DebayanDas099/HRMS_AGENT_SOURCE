@@ -28,8 +28,7 @@ public sealed class HrmsHandoffWorkflowFactory
         HandoffWorkflowTemplate blueprintTemplate,
         PolicyKnowledgeTools policyKnowledgeTools,
         LeaveApplicationTools leaveApplicationTools,
-        IDocumentKernelFunctionCatalog documentKernelFunctionCatalog)
-        LeaveApplicationTools leaveApplicationTools,
+        IDocumentKernelFunctionCatalog documentKernelFunctionCatalog,
         RelativeDateParsingTools relativeDateParsingTools,
         IServiceScopeFactory scopeFactory)
     {
