@@ -33,4 +33,10 @@ public class AdminUserDto
 
     [JsonProperty("group_code")]
     public string GroupCode { get; set; } = string.Empty;
+
+    [JsonProperty("email")]
+    public string? Email { get; set; }
+
+    [JsonProperty("mobile")]
+    public string? Mobile { get; set; }
 }

@@ -5,6 +5,7 @@ using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
 using HRMS_CHATBOT_SOURCE.Domain.Json;
 using HRMS_CHATBOT_SOURCE.Infrastructure.Core;
 using HRMS_CHATBOT_SOURCE.Infrastructure.Interfaces;
+using HRMS_CHATBOT_SOURCE.Infrastructure.Security;
 using HRMS_CHATBOT_SOURCE.Infrastructure.Services;
 using MCC.Foundation.Authentication;
 using MCC.Foundation.Chunker;
@@ -36,6 +37,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(applicationSecrets);
         services.AddSingleton<IAzureKeyVaultService, AzureKeyVaultService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddSingleton<JwtTokenValidator>();
 
         return services;
     }

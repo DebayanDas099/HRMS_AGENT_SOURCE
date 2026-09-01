@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Request;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
+using HRMS_CHATBOT_SOURCE.Infrastructure.Core;
 using HRMS_CHATBOT_SOURCE.Logic.Adapter;
 using HRMS_CHATBOT_SOURCE.Repo.Admin;
 using Microsoft.Extensions.Logging;
@@ -22,17 +24,20 @@ public class ChatLogic : IChatLogic
     private readonly IAgentAccessService _agentAccessService;
     private readonly IHrmsChatRuntime _chatRuntime;
     private readonly IUserProfileRepo _userProfileRepo;
+    private readonly IServiceContext _serviceContext;
     private readonly ILogger<ChatLogic> _logger;
 
     public ChatLogic(
         IAgentAccessService agentAccessService,
         IHrmsChatRuntime chatRuntime,
         IUserProfileRepo userProfileRepo,
+        IServiceContext serviceContext,
         ILogger<ChatLogic> logger)
     {
         _agentAccessService = agentAccessService;
         _chatRuntime = chatRuntime;
         _userProfileRepo = userProfileRepo;
+        _serviceContext = serviceContext;
         _logger = logger;
     }
 
@@ -40,9 +45,9 @@ public class ChatLogic : IChatLogic
         ChatTurnRequest? request,
         CancellationToken cancellationToken = default)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.Mobile))
+        if (request == null)
         {
-            throw new ValidationException("Mobile number is required.");
+            throw new ValidationException("Invalid request.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Message))
@@ -50,18 +55,26 @@ public class ChatLogic : IChatLogic
             throw new ValidationException("Message is required.");
         }
 
-        var mobile = request.Mobile.Trim();
+        var mobile = !string.IsNullOrWhiteSpace(request.Mobile)
+            ? request.Mobile.Trim()
+            : _serviceContext.CurrentUser?.Mobile?.Trim();
+
+        if (string.IsNullOrWhiteSpace(mobile))
+        {
+            _logger.LogWarning(
+                "Chat mobile missing: request.Mobile={RequestMobile}, authenticatedMobile={AuthenticatedMobile}, userAuthenticated={UserAuthenticated}",
+                request.Mobile,
+                _serviceContext.CurrentUser?.Mobile,
+                _serviceContext.RequestContext?.User?.Identity?.IsAuthenticated);
+
+            throw new ValidationException("Mobile number is required.");
+        }
         var enabledAgents = await _agentAccessService
             .GetEnabledAgentNamesAsync(mobile, cancellationToken)
             .ConfigureAwait(false);
 
         if (enabledAgents.Count == 0)
         {
-            // Short-circuit here, not inside the workflow: HandoffWorkflowTemplate
-            // always force-adds Supervisor to whatever agent set it is given, so an
-            // empty list reaching it would still produce a working conversation.
-            // The only way to guarantee "a single controlled response and nothing
-            // else" is to never build the workflow at all for a denied number.
             _logger.LogWarning("Chat access denied: no agents enabled for mobile {Mobile}.", mobile);
 
             return new ChatTurnResponse
@@ -76,7 +89,7 @@ public class ChatLogic : IChatLogic
         }
 
         return await _chatRuntime
-            .RunAsync(enabledAgents, request.ConversationId, request.Message, cancellationToken)
+            .RunAsync(enabledAgents, request.ConversationId, request.Message, mobile, cancellationToken)
             .ConfigureAwait(false);
     }
 

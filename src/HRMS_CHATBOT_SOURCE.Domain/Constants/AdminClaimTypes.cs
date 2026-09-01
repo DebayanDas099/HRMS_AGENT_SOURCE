@@ -8,4 +8,5 @@ public static class AdminClaimTypes
     public const string IsAdmin = "IsAdmin";
     public const string EmployeeId = "EmployeeId";
     public const string Email = "Email";
+    public const string Mobile = "Mobile";
 }

@@ -101,6 +101,31 @@ internal static class DocumentAdapter
         return MapDocumentRow(dataSet.Tables[0].Rows[0]);
     }
 
+    internal static IReadOnlyList<DocumentSimilarityMatchDto> MapSimilarityMatches(MSSQLResponse? response)
+    {
+        EnsureSuccess(response);
+
+        if (response?.Data is not DataSet { Tables.Count: > 0 } dataSet
+            || dataSet.Tables[0].Rows.Count == 0
+            || !dataSet.Tables[0].Columns.Contains("dm_id"))
+        {
+            return [];
+        }
+
+        return dataSet.Tables[0].Rows.Cast<DataRow>().Select(row => new DocumentSimilarityMatchDto
+        {
+            DocumentId = Convert.ToInt64(row["dm_id"]),
+            Category = Convert.ToString(row["dm_category"]) ?? string.Empty,
+            Name = Convert.ToString(row["dm_name"]) ?? string.Empty,
+            Path = Convert.ToString(row["dm_path"]) ?? string.Empty,
+            Active = Convert.ToString(row["dm_active"]) ?? "N",
+            IngestionStatus = ReadOptionalString(row, "dm_ingestion_status") ?? "Pending",
+            SimilarityScore = row.Table.Columns.Contains("similarity_score")
+                ? ToInt(row["similarity_score"])
+                : 0
+        }).ToList();
+    }
+
     internal static long MapInsertedDocumentId(MSSQLResponse? response)
     {
         EnsureSuccess(response);

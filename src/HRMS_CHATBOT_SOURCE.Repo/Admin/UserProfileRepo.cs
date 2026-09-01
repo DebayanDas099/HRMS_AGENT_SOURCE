@@ -88,6 +88,54 @@ public class UserProfileRepo : IUserProfileRepo
         };
     }
 
+    public async Task<string?> GetUserMobileByUserIdAsync(
+        string? userId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return null;
+        }
+
+        var sqlParams = new SqlParameter[]
+        {
+            new()
+            {
+                ParameterName = "@user_id",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 20,
+                Value = userId.Trim()
+            },
+            new()
+            {
+                ParameterName = "@mobile",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Output,
+                Size = 20
+            }
+        };
+
+        var response = new MSSQLResponse
+        {
+            RowsAffected = await _sqlHelper.ExecuteNonQuery(new ExecuteNonQueryRequest
+            {
+                CommandText = "[dbo].[Get_Admin_User_Mobile]",
+                CommandTimeout = SqlCommon.SQLCommandTimeOut,
+                CommandType = CommandType.StoredProcedure,
+                ConnectionProperties = _serviceContext.SQLConnectionModel,
+                Parameters = sqlParams
+            }),
+            Data = null,
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+
+        var mobile = Convert.ToString(response.OutputParameters?.FirstOrDefault(p =>
+            string.Equals(p.ParameterName, "@mobile", StringComparison.OrdinalIgnoreCase))?.Value);
+
+        return string.IsNullOrWhiteSpace(mobile) ? null : mobile.Trim();
+    }
+
     public async Task<MSSQLResponse?> UpdateLastAccessedAsync(
         string? userId,
         CancellationToken cancellationToken = default)

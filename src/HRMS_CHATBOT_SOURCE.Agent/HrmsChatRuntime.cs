@@ -2,9 +2,11 @@ using System.Collections.Concurrent;
 using HRMS_CHATBOT_SOURCE.Agent.Skills;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
+using HRMS_CHATBOT_SOURCE.Logic.Common;
 using MCC.Foundation.Guardrails;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace HRMS_CHATBOT_SOURCE.Agent;
@@ -16,6 +18,7 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
 
     private readonly HrmsHandoffWorkflowFactory _workflowFactory;
     private readonly CheckpointManager _checkpointManager;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<HrmsChatRuntime> _logger;
 
     /// <summary>
@@ -33,10 +36,12 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
     public HrmsChatRuntime(
         HrmsHandoffWorkflowFactory workflowFactory,
         CheckpointManager checkpointManager,
+        IServiceScopeFactory scopeFactory,
         ILogger<HrmsChatRuntime> logger)
     {
         _workflowFactory = workflowFactory;
         _checkpointManager = checkpointManager;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -44,6 +49,7 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
         IReadOnlyCollection<string> enabledAgentNames,
         string? conversationId,
         string message,
+        string? authenticatedMobile = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(message))
@@ -69,7 +75,9 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
             .ToList();
 
         var workflow = _workflowFactory.Build(enabled);
-        var turnMessages = ApplyCurrentAccessOverride(snapshot, enabled);
+        using var scope = _scopeFactory.CreateScope();
+        var commonLogic = scope.ServiceProvider.GetRequiredService<ICommonLogic>();
+        var turnMessages = ApplyCurrentAccessOverride(snapshot, enabled, commonLogic, authenticatedMobile);
         var reply = await RunTurnAsync(workflow, turnMessages, id, cancellationToken).ConfigureAwait(false);
 
         lock (history)
@@ -195,13 +203,28 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
         }
     }
 
-    internal static IReadOnlyList<ChatMessage> ApplyCurrentAccessOverride(
+    internal IReadOnlyList<ChatMessage> ApplyCurrentAccessOverride(
         IReadOnlyList<ChatMessage> history,
-        IReadOnlyCollection<string> enabledAgentNames)
+        IReadOnlyCollection<string> enabledAgentNames,
+        ICommonLogic commonLogic,
+        string? authenticatedMobile = null)
     {
-        var notice = new ChatMessage(
-            ChatRole.System,
-            SupervisorSkillComposer.BuildCurrentAccessNotice(enabledAgentNames));
+        var noticeText = SupervisorSkillComposer.BuildCurrentAccessNotice(enabledAgentNames);
+
+        if (!string.IsNullOrWhiteSpace(authenticatedMobile))
+        {
+            noticeText += Environment.NewLine + Environment.NewLine
+                + SupervisorSkillComposer.BuildAuthenticatedEmployeeNotice(authenticatedMobile);
+        }
+
+        var latestUserMessage = history.LastOrDefault(m => m.Role == ChatRole.User)?.Text;
+        var parsedDateNotice = SupervisorSkillComposer.BuildParsedDateNotice(latestUserMessage, commonLogic);
+        if (!string.IsNullOrWhiteSpace(parsedDateNotice))
+        {
+            noticeText += Environment.NewLine + Environment.NewLine + parsedDateNotice;
+        }
+
+        var notice = new ChatMessage(ChatRole.System, noticeText);
 
         if (history.Count == 0)
         {
