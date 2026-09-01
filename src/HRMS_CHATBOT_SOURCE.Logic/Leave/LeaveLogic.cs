@@ -38,10 +38,10 @@ public class LeaveLogic : ILeaveLogic
         return LeaveAdapter.MapBalanceSummary(response);
     }
 
-    public Task<string> ValidateAndApplyLeaveAsync(
+    public async Task<string> ValidateAndApplyLeaveAsync(
         string? mobile,
-        DateTime? fromDate,
-        DateTime? toDate,
+        DateTime fromDate,
+        DateTime toDate,
         string? reason,
         CancellationToken cancellationToken = default)
     {
@@ -50,9 +50,26 @@ public class LeaveLogic : ILeaveLogic
             throw new ValidationException("Mobile number is required.");
         }
 
-        // Real validation and submission against the leave backend is not wired up yet.
-        return Task.FromResult(
-            "Leave validation and application is not available yet. "
-            + "This request has been noted, but no leave has been submitted or validated.");
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new ValidationException("Reason for leave is required.");
+        }
+
+        var start = fromDate.Date;
+        var end = toDate.Date;
+
+        if (start > end)
+        {
+            throw new ValidationException("Start date cannot be after end date.");
+        }
+
+        var response = await _leaveRepo.ValidateAndApplyLeaveByUserAsync(
+            mobile.Trim(),
+            start,
+            end,
+            reason.Trim(),
+            cancellationToken);
+
+        return LeaveAdapter.MapApplyResult(response);
     }
 }

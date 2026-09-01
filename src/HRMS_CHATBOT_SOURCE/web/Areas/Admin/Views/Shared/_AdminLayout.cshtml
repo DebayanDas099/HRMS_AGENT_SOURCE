@@ -22,6 +22,13 @@
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-loaders.css" asp-append-version="true" />
+    <script>
+        (function () {
+            if (localStorage.getItem('hrms-admin-theme') === 'dark') {
+                document.documentElement.classList.add('theme-dark');
+            }
+        })();
+    </script>
 </head>
 <body class="admin-body">
     <div class="admin-bg"></div>
@@ -80,6 +87,14 @@
                 <p class="topbar-brand-title" aria-label="HRMS Agent Admin">HRMS Agent Admin</p>
             </div>
             <div class="topbar-right">
+                <label class="theme-toggle" for="themeToggle" title="Toggle dark mode">
+                    <input type="checkbox" id="themeToggle" aria-label="Toggle dark mode" />
+                    <span class="theme-toggle-track">
+                        <iconify-icon icon="ph:sun-duotone" class="theme-toggle-icon theme-toggle-icon-light"></iconify-icon>
+                        <iconify-icon icon="ph:moon-duotone" class="theme-toggle-icon theme-toggle-icon-dark"></iconify-icon>
+                        <span class="theme-toggle-thumb"></span>
+                    </span>
+                </label>
                 <button class="topbar-btn" type="button" aria-label="Notifications">
                     <iconify-icon icon="ph:bell-duotone"></iconify-icon>
                     <span class="notif-dot"></span>
