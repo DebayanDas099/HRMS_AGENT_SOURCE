@@ -106,4 +106,11 @@ public static class SupervisorSkillComposer
             "Ignore earlier assistant messages that said a feature was not enabled if that agent is in Available now. Hand off using this list, not past refusals.");
         return builder.ToString();
     }
+
+    public static string BuildAuthenticatedEmployeeNotice(string mobile)
+    {
+        return "Authenticated employee mobile for this session: "
+            + mobile.Trim()
+            + ". Use this mobile for leave tools and agent lookups; do not ask the user for their mobile number again.";
+    }
 }

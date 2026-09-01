@@ -1,8 +1,12 @@
+using System.Text.Json;
+using HRMS_CHATBOT_SOURCE.Agent.Checkpointing;
 using HRMS_CHATBOT_SOURCE.Agent.Tools;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Settings;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
 using MCC.Foundation.Guardrails.Configuration;
 using MCC.Foundation.Guardrails.Extensions;
+using Microsoft.Agents.AI.Workflows;
+using Microsoft.Agents.AI.Workflows.Checkpointing;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +31,36 @@ public static class DependencyInjection
         services.AddMccGuardrails(GuardrailCategory.Recommended, options =>
         {
             options.FailOpen = false;
+        });
+
+        // Cosmos when configured, in-memory otherwise. Both AddAzureCosmosService
+        // (Infrastructure) and this check key off the same secret, so they agree: if
+        // ConnectionStrings:CosmosDb is present, ICosmosService is registered too.
+        // Falling back to in-memory rather than throwing keeps local/dev usable without
+        // Cosmos configured - but it does not satisfy the "API instances must be
+        // stateless, no session affinity" requirement, and that gap is logged loudly.
+        services.Configure<CosmosSettings>(configuration.GetSection(CosmosSettings.SectionName));
+        services.AddSingleton(sp =>
+        {
+            var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("CheckpointManager");
+            var cosmosConfigured = !string.IsNullOrWhiteSpace(configuration["ConnectionStrings:CosmosDb"]);
+
+            if (!cosmosConfigured)
+            {
+                logger.LogWarning(
+                    "ConnectionStrings:CosmosDb is not configured; chat checkpoints are held in "
+                    + "process memory. This does not survive a restart and is not safe for more "
+                    + "than one app instance - configure Cosmos before running with multiple replicas.");
+                return CheckpointManager.CreateInMemory();
+            }
+
+            var store = new CosmosCheckpointStore(
+                sp.GetRequiredService<IServiceScopeFactory>(),
+                sp.GetRequiredService<IOptions<CosmosSettings>>(),
+                sp.GetRequiredService<ILogger<CosmosCheckpointStore>>());
+
+            logger.LogInformation("Cosmos-backed checkpoint store enabled.");
+            return CheckpointManager.CreateJson((ICheckpointStore<JsonElement>)store);
         });
 
         services.AddSingleton<IChatClient>(sp => FoundryChatClientFactory.Create(

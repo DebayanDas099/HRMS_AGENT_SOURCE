@@ -15,14 +15,28 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
         "I can't help with that request. If you need assistance, please contact HR directly.";
 
     private readonly HrmsHandoffWorkflowFactory _workflowFactory;
+    private readonly CheckpointManager _checkpointManager;
     private readonly ILogger<HrmsChatRuntime> _logger;
-    private readonly ConcurrentDictionary<string, List<ChatMessage>> _sessions = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The transcript replayed as this turn's input. This is distinct from the MAF
+    /// checkpoint recorded per run below, and stays in-process for now: MAF's own
+    /// resumption path (ResumeStreamingAsync) is documented as resuming a run
+    /// suspended on a RequestPort's RequestInfoEvent, and this workflow has no
+    /// RequestPort - every turn runs the handoff graph to completion. Without a
+    /// suspend point there is nothing for a checkpoint to resume, so it cannot yet
+    /// replace this cache; it becomes load-bearing the moment a RequestPort (e.g.
+    /// the leave confirmation gate) is added.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, List<ChatMessage>> _conversationHistory = new(StringComparer.OrdinalIgnoreCase);
 
     public HrmsChatRuntime(
         HrmsHandoffWorkflowFactory workflowFactory,
+        CheckpointManager checkpointManager,
         ILogger<HrmsChatRuntime> logger)
     {
         _workflowFactory = workflowFactory;
+        _checkpointManager = checkpointManager;
         _logger = logger;
     }
 
@@ -30,6 +44,7 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
         IReadOnlyCollection<string> enabledAgentNames,
         string? conversationId,
         string message,
+        string? authenticatedMobile = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(message))
@@ -41,7 +56,7 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
             ? Guid.NewGuid().ToString("N")
             : conversationId.Trim();
 
-        var history = _sessions.GetOrAdd(id, _ => []);
+        var history = _conversationHistory.GetOrAdd(id, _ => []);
         List<ChatMessage> snapshot;
         lock (history)
         {
@@ -55,8 +70,8 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
             .ToList();
 
         var workflow = _workflowFactory.Build(enabled);
-        var turnMessages = ApplyCurrentAccessOverride(snapshot, enabled);
-        var reply = await RunTurnAsync(workflow, turnMessages, cancellationToken).ConfigureAwait(false);
+        var turnMessages = ApplyCurrentAccessOverride(snapshot, enabled, authenticatedMobile);
+        var reply = await RunTurnAsync(workflow, turnMessages, id, cancellationToken).ConfigureAwait(false);
 
         lock (history)
         {
@@ -83,11 +98,12 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
     private async Task<(string Text, string? LastSpeaker)> RunTurnAsync(
         Workflow workflow,
         IReadOnlyList<ChatMessage> messages,
+        string sessionId,
         CancellationToken cancellationToken)
     {
         try
         {
-            return await ExecuteTurnAsync(workflow, messages, cancellationToken).ConfigureAwait(false);
+            return await ExecuteTurnAsync(workflow, messages, sessionId, cancellationToken).ConfigureAwait(false);
         }
         catch (GuardrailViolationException ex)
         {
@@ -104,9 +120,16 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
     private async Task<(string Text, string? LastSpeaker)> ExecuteTurnAsync(
         Workflow workflow,
         IReadOnlyList<ChatMessage> messages,
+        string sessionId,
         CancellationToken cancellationToken)
     {
-        await using var run = await InProcessExecution.RunStreamingAsync(workflow, messages, cancellationToken: cancellationToken)
+        // Passing the checkpoint manager and a stable session id (the conversation id)
+        // makes this a genuine MAF-tracked run rather than a session-less one-off call:
+        // MAF externalises a real, queryable checkpoint per run under this session,
+        // which is the audit trail SP10 calls for and the exact seam ResumeStreamingAsync
+        // will need once a RequestPort exists.
+        await using var run = await InProcessExecution
+            .RunStreamingAsync(workflow, messages, _checkpointManager, sessionId, cancellationToken)
             .ConfigureAwait(false);
         await run.TrySendMessageAsync(new TurnToken(emitEvents: true)).ConfigureAwait(false);
 
@@ -138,6 +161,8 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
             }
         }
 
+        await LogCheckpointAsync(sessionId, cancellationToken).ConfigureAwait(false);
+
         var reply = text.ToString().Trim();
         if (string.IsNullOrWhiteSpace(reply))
         {
@@ -148,13 +173,42 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
         return (reply, lastSpeaker);
     }
 
+    private async Task LogCheckpointAsync(string sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var checkpoint = await _checkpointManager
+                .GetLatestCheckpointAsync(sessionId, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (checkpoint != null)
+            {
+                _logger.LogInformation(
+                    "Checkpointed conversation {SessionId} at {CheckpointId}.",
+                    checkpoint.SessionId,
+                    checkpoint.CheckpointId);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Observability only - a checkpoint lookup failure must not fail the turn.
+            _logger.LogDebug(ex, "Could not read the latest checkpoint for conversation {SessionId}.", sessionId);
+        }
+    }
+
     internal static IReadOnlyList<ChatMessage> ApplyCurrentAccessOverride(
         IReadOnlyList<ChatMessage> history,
-        IReadOnlyCollection<string> enabledAgentNames)
+        IReadOnlyCollection<string> enabledAgentNames,
+        string? authenticatedMobile = null)
     {
-        var notice = new ChatMessage(
-            ChatRole.System,
-            SupervisorSkillComposer.BuildCurrentAccessNotice(enabledAgentNames));
+        var noticeText = SupervisorSkillComposer.BuildCurrentAccessNotice(enabledAgentNames);
+        if (!string.IsNullOrWhiteSpace(authenticatedMobile))
+        {
+            noticeText += Environment.NewLine + Environment.NewLine
+                + SupervisorSkillComposer.BuildAuthenticatedEmployeeNotice(authenticatedMobile);
+        }
+
+        var notice = new ChatMessage(ChatRole.System, noticeText);
 
         if (history.Count == 0)
         {

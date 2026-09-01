@@ -1,0 +1,162 @@
+/* TEST-ONLY CHAT WIDGET STYLES
+   Safe to delete this file when the test chat widget is removed.
+   Also remove its <link> reference from Conversations/Index.cshtml. */
+
+.test-chat-panel {
+    margin-top: 1.5rem;
+}
+
+.test-chat-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.test-chat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(224, 64, 251, 0.12);
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.test-chat-body {
+    margin-top: 1rem;
+}
+
+.test-chat-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.test-chat-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 180px;
+}
+
+.test-chat-field label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.test-chat-field input {
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.875rem;
+}
+
+.test-chat-conversation-id {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: ui-monospace, monospace;
+}
+
+.test-chat-log {
+    min-height: 220px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-alt, var(--surface));
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.test-chat-message {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    max-width: 85%;
+    padding: 0.65rem 0.85rem;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+
+.test-chat-message.user {
+    align-self: flex-end;
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--text);
+}
+
+.test-chat-message.assistant {
+    align-self: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+}
+
+.test-chat-message.error {
+    align-self: stretch;
+    background: rgba(239, 68, 68, 0.1);
+    color: #b91c1c;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.test-chat-message-meta {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+}
+
+.test-chat-compose {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.test-chat-compose textarea {
+    flex: 1;
+    min-height: 44px;
+    max-height: 120px;
+    resize: vertical;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.875rem;
+    font-family: inherit;
+}
+
+.test-chat-compose button {
+    align-self: flex-end;
+}
+
+.test-chat-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.test-chat-btn iconify-icon {
+    font-size: 1.1rem;
+}
+
+.test-chat-send-btn {
+    min-width: 6.5rem;
+    justify-content: center;
+}
+
+.test-chat-send-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}

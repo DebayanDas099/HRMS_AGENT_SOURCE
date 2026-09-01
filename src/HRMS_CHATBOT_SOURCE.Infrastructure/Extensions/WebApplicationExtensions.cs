@@ -29,6 +29,7 @@ public static class WebApplicationExtensions
         app.UseSession();
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseJwtValidationMiddleware();
 
         app.MapControllers();
         app.MapControllerRoute(

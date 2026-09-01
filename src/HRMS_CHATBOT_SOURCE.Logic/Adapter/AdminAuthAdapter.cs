@@ -46,7 +46,8 @@ internal static class AdminAuthAdapter
             Department = Convert.ToString(row["depot_name"]) ?? Convert.ToString(row["department"]) ?? string.Empty,
             Designation = Convert.ToString(row["designation"]),
             EmployeeId = Convert.ToString(row["employee_id"]),
-            Email = Convert.ToString(row["mail_id"]),
+            Email = ReadOptionalString(row, "mail_id", "usp_mailid", "email"),
+            Mobile = ReadOptionalString(row, "mobile", "usp_mobile", "Mobile"),
             Active = Convert.ToString(row["active"]) ?? "N",
             AdminYn = row.Table.Columns.Contains("usp_admin_yn")
                 ? Convert.ToString(row["usp_admin_yn"])
@@ -55,5 +56,41 @@ internal static class AdminAuthAdapter
                 ? Convert.ToDateTime(row["last_working_date"])
                 : null
         };
+    }
+
+    private static string? ReadOptionalString(DataRow row, params string[] columnNames)
+    {
+        foreach (var columnName in columnNames)
+        {
+            if (!row.Table.Columns.Contains(columnName))
+            {
+                continue;
+            }
+
+            var value = Convert.ToString(row[columnName]);
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim();
+            }
+        }
+
+        foreach (DataColumn column in row.Table.Columns)
+        {
+            foreach (var columnName in columnNames)
+            {
+                if (!string.Equals(column.ColumnName, columnName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var value = Convert.ToString(row[column]);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value.Trim();
+                }
+            }
+        }
+
+        return null;
     }
 }
