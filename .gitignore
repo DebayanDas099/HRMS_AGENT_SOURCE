@@ -407,3 +407,4 @@ fabric.properties
 # Both are locally generated and the secret cache must never be committed.
 **/App_Data/keyvault-secrets.json
 **/App_Data/lucene-index/
+/.cursor
