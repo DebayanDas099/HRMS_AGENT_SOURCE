@@ -69,6 +69,7 @@
         const claims = auth?.parseTokenClaims?.() || {};
         const userId = profile?.user_id || claims.UserId || '';
         const fullName = profile?.full_name || claims.UserName || '';
+        const defaultMobile = getDefaultMobile();
 
         if (elements.userInfo) {
             if (userId || fullName) {
@@ -82,7 +83,6 @@
             return;
         }
 
-        const defaultMobile = getDefaultMobile();
         if (defaultMobile) {
             elements.mobileInput.value = defaultMobile;
         }
