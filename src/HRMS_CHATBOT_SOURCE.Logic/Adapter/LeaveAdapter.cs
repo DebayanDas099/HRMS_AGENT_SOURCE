@@ -32,6 +32,18 @@ internal static class LeaveAdapter
         };
     }
 
+    internal static string MapApplyResult(MSSQLResponse? response)
+    {
+        EnsureSuccess(response);
+
+        var outputMsg = Convert.ToString(response?.OutputParameters?.FirstOrDefault(p =>
+            string.Equals(p.ParameterName, "@outputMsg", StringComparison.OrdinalIgnoreCase))?.Value);
+
+        return string.IsNullOrWhiteSpace(outputMsg)
+            ? "Leave application submitted successfully."
+            : outputMsg;
+    }
+
     internal static void EnsureSuccess(MSSQLResponse? response)
     {
         var outputCode = int.TryParse(Convert.ToString(response?.OutputParameters?.FirstOrDefault(p =>

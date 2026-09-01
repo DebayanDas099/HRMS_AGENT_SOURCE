@@ -9,8 +9,8 @@ using Microsoft.Extensions.Logging;
 namespace HRMS_CHATBOT_SOURCE.Agent.Tools;
 
 /// <summary>
-/// The Leave Application Agent's tools: leave balance lookup and a (stubbed) leave
-/// application submission.
+/// The Leave Application Agent's tools: leave balance lookup and leave application
+/// submission.
 /// <para>
 /// The chat runtime never resolves a caller's HRMS user id - only the mobile number
 /// captured on the chat request ever reaches this layer, and that number is not
@@ -74,13 +74,15 @@ public sealed class LeaveApplicationTools
     }
 
     [Description(
-        "Validates and submits a leave application for the given mobile number. Not implemented "
-        + "yet - currently returns a placeholder response only, no leave is actually validated or submitted.")]
+        "Validates and submits a leave application for the employee's registered mobile number. "
+        + "Requires from date, to date, and reason - collect all three from the employee before "
+        + "calling. Ask for the registered mobile number only when it is not already known from "
+        + "the session context.")]
     public async Task<string> ValidateAndApplyLeaveAsync(
         [Description("The employee's registered mobile number.")] string mobile,
-        [Description("Leave from date (yyyy-MM-dd).")] string? fromDate = null,
-        [Description("Leave to date (yyyy-MM-dd).")] string? toDate = null,
-        [Description("Reason for the leave request.")] string? reason = null,
+        [Description("Leave start date (yyyy-MM-dd). Required.")] string fromDate,
+        [Description("Leave end date (yyyy-MM-dd). Required.")] string toDate,
+        [Description("Reason for the leave request. Required.")] string reason,
         CancellationToken cancellationToken = default)
     {
         try
@@ -89,13 +91,23 @@ public sealed class LeaveApplicationTools
             var leaveLogic = scope.ServiceProvider.GetRequiredService<ILeaveLogic>();
 
             return await leaveLogic
-                .ValidateAndApplyLeaveAsync(mobile, ParseOptionalDate(fromDate), ParseOptionalDate(toDate), reason, cancellationToken)
+                .ValidateAndApplyLeaveAsync(
+                    mobile,
+                    ParseRequiredDate(fromDate),
+                    ParseRequiredDate(toDate),
+                    reason,
+                    cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (ValidationException ex)
         {
             _logger.LogInformation("Leave application rejected for mobile {Mobile}: {Reason}", mobile, ex.Message);
             return $"Unable to validate leave request: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Leave application failed for mobile {Mobile}.", mobile);
+            return "The leave system could not be reached. Tell the employee the service is temporarily unavailable and to try again shortly.";
         }
     }
 
@@ -115,6 +127,18 @@ public sealed class LeaveApplicationTools
         if (string.IsNullOrWhiteSpace(value))
         {
             return null;
+        }
+
+        return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+            ? parsed
+            : throw new ValidationException($"Invalid date '{value}'. Use format {DateFormat}.");
+    }
+
+    private static DateTime ParseRequiredDate(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ValidationException($"Date is required. Use format {DateFormat}.");
         }
 
         return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
