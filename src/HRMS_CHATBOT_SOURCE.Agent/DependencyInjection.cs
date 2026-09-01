@@ -73,6 +73,7 @@ public static class DependencyInjection
         services.AddSingleton<IChatTurnContextAccessor, ChatTurnContextAccessor>();
         services.AddSingleton<DocumentKernelFunctions>();
         services.AddSingleton<IDocumentKernelFunctionCatalog, DocumentKernelFunctionCatalog>();
+        services.AddSingleton<RelativeDateParsingTools>();
         services.AddSingleton<HrmsHandoffWorkflowFactory>();
         services.AddSingleton<IHrmsChatRuntime, HrmsChatRuntime>();
 

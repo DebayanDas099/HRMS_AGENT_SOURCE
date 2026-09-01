@@ -1,7 +1,9 @@
 using HRMS_CHATBOT_SOURCE.Agent;
 using HRMS_CHATBOT_SOURCE.Agent.Skills;
 using HRMS_CHATBOT_SOURCE.Domain.Constants;
+using HRMS_CHATBOT_SOURCE.Logic.Common;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HRMS_CHATBOT_SOURCE.Tests.Agent;
 
@@ -51,9 +53,16 @@ public class SupervisorSkillComposerTests
             new(ChatRole.User, "I want to apply leave")
         };
 
-        var turnMessages = HrmsChatRuntime.ApplyCurrentAccessOverride(
+        var runtime = new HrmsChatRuntime(
+            null!,
+            null!,
+            null!,
+            NullLogger<HrmsChatRuntime>.Instance);
+        var commonLogic = new CommonLogic();
+        var turnMessages = runtime.ApplyCurrentAccessOverride(
             history,
             [AgentNames.Supervisor, AgentNames.LeaveApplication, AgentNames.Document],
+            commonLogic,
             authenticatedMobile: "1234567890");
 
         Assert.Equal(4, turnMessages.Count);
