@@ -7,4 +7,5 @@ public interface IUserProfileRepo
 {
     Task<MSSQLResponse?> ValidateAdminLoginAsync(LoginRequest? request, CancellationToken cancellationToken = default);
     Task<MSSQLResponse?> UpdateLastAccessedAsync(string? userId, CancellationToken cancellationToken = default);
+    Task<MSSQLResponse?> GetActiveMobileNumbersAsync(CancellationToken cancellationToken = default);
 }
