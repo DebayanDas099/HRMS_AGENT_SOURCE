@@ -27,6 +27,12 @@ public interface IDocumentRepo
 
     Task<MSSQLResponse?> GetByIdAsync(long documentId, CancellationToken cancellationToken = default);
 
+    Task<MSSQLResponse?> GetBySimilarityAsync(
+        string searchText,
+        int minScore,
+        int topCount,
+        CancellationToken cancellationToken = default);
+
     Task<MSSQLResponse?> UpdateIngestionAsync(
         long documentId,
         string ingestionStatus,

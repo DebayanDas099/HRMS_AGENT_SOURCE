@@ -17,17 +17,20 @@ public sealed class HrmsHandoffWorkflowFactory
     private readonly HandoffWorkflowTemplate _blueprintTemplate;
     private readonly PolicyKnowledgeTools _policyKnowledgeTools;
     private readonly LeaveApplicationTools _leaveApplicationTools;
+    private readonly IDocumentKernelFunctionCatalog _documentKernelFunctionCatalog;
 
     public HrmsHandoffWorkflowFactory(
         IChatClient chatClient,
         HandoffWorkflowTemplate blueprintTemplate,
         PolicyKnowledgeTools policyKnowledgeTools,
-        LeaveApplicationTools leaveApplicationTools)
+        LeaveApplicationTools leaveApplicationTools,
+        IDocumentKernelFunctionCatalog documentKernelFunctionCatalog)
     {
         _chatClient = chatClient;
         _blueprintTemplate = blueprintTemplate;
         _policyKnowledgeTools = policyKnowledgeTools;
         _leaveApplicationTools = leaveApplicationTools;
+        _documentKernelFunctionCatalog = documentKernelFunctionCatalog;
     }
 
     public Workflow Build(IReadOnlyCollection<string> enabledAgentNames)
@@ -116,13 +119,19 @@ public sealed class HrmsHandoffWorkflowFactory
             ];
         }
 
+        if (string.Equals(agentName, AgentNames.Document, StringComparison.OrdinalIgnoreCase))
+        {
+            return _documentKernelFunctionCatalog.GetTools().ToList();
+        }
+
         return null;
     }
 
     private static bool HasTools(string agentName)
     {
         return string.Equals(agentName, AgentNames.Knowledge, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(agentName, AgentNames.LeaveApplication, StringComparison.OrdinalIgnoreCase);
+            || string.Equals(agentName, AgentNames.LeaveApplication, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(agentName, AgentNames.Document, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ResolveInstructions(AgentBlueprint participant)

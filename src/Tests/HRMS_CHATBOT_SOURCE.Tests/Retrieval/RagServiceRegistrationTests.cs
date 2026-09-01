@@ -116,6 +116,9 @@ public class RagServiceRegistrationTests
         public Task<MSSQLResponse?> GetByIdAsync(
             long documentId, CancellationToken cancellationToken = default) => None;
 
+        public Task<MSSQLResponse?> GetBySimilarityAsync(
+            string searchText, int minScore, int topCount, CancellationToken cancellationToken = default) => None;
+
         public Task<MSSQLResponse?> UpdateIngestionAsync(
             long documentId, string ingestionStatus, DateTime? ingestedAt, string? ingestionError,
             int? chunkCount, CancellationToken cancellationToken = default) => None;

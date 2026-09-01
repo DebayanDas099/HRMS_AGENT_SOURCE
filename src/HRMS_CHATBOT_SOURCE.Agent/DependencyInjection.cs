@@ -70,6 +70,9 @@ public static class DependencyInjection
             sp.GetRequiredService<ILoggerFactory>().CreateLogger("FoundryChatClient")));
         services.AddSingleton<PolicyKnowledgeTools>();
         services.AddSingleton<LeaveApplicationTools>();
+        services.AddSingleton<IChatTurnContextAccessor, ChatTurnContextAccessor>();
+        services.AddSingleton<DocumentKernelFunctions>();
+        services.AddSingleton<IDocumentKernelFunctionCatalog, DocumentKernelFunctionCatalog>();
         services.AddSingleton<HrmsHandoffWorkflowFactory>();
         services.AddSingleton<IHrmsChatRuntime, HrmsChatRuntime>();
 
