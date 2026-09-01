@@ -115,6 +115,7 @@
                 }
 
                 window.HrmsAdminAuth?.saveToken(data.access_token, rememberMe);
+                window.HrmsAdminAuth?.saveUserProfile(data.user);
 
                 const returnUrl = returnUrlInput?.value;
                 window.location.href = returnUrl && returnUrl.startsWith('/') ? returnUrl : '/Admin/Dashboard';

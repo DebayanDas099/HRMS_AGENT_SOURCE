@@ -13,5 +13,6 @@ public interface IHrmsChatRuntime
         IReadOnlyCollection<string> enabledAgentNames,
         string? conversationId,
         string message,
+        string? authenticatedMobile = null,
         CancellationToken cancellationToken = default);
 }
