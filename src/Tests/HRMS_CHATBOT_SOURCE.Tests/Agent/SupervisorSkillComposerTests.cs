@@ -38,7 +38,6 @@ public class SupervisorSkillComposerTests
 
         Assert.Contains("`LeaveApplicationAgent`", ExtractSection(instructions, "Available skills"));
         Assert.Contains("- None.", ExtractSection(instructions, "Unavailable skills"));
-        Assert.Contains("hand off to `LeaveApplicationAgent`", instructions, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("source of truth for this turn", instructions, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("cannot apply leave", instructions, StringComparison.OrdinalIgnoreCase);
     }

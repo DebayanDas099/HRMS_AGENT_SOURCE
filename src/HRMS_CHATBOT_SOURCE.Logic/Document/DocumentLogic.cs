@@ -1,36 +1,56 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using HRMS_CHATBOT_SOURCE.Domain.Constants;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
+using HRMS_CHATBOT_SOURCE.Domain.Dto.Settings;
 using HRMS_CHATBOT_SOURCE.Domain.Helpers;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
 using HRMS_CHATBOT_SOURCE.Logic.Adapter;
 using HRMS_CHATBOT_SOURCE.Repo.Document;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace HRMS_CHATBOT_SOURCE.Logic;
 
 public class DocumentLogic : IDocumentLogic
 {
+    private static readonly byte[] TokenSalt = [0x49, 0x76, 0x61, 0x6E, 0x20, 0x4D, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76];
     private static readonly HashSet<string> AllowedExtensions = new(
         DocumentUploadConstants.AllowedExtensions,
         StringComparer.OrdinalIgnoreCase);
+    private static readonly AsyncLocal<ChatTurnContext?> ChatContext = new();
 
     private readonly IDocumentRepo _documentRepo;
     private readonly IDocumentBlobService _documentBlobService;
     private readonly IDocumentIngestionPipeline? _documentIngestionPipeline;
     private readonly ILogger<DocumentLogic>? _logger;
+    private readonly AppSettings _appSettings;
 
     public DocumentLogic(
         IDocumentRepo documentRepo,
         IDocumentBlobService documentBlobService,
         IDocumentIngestionPipeline? documentIngestionPipeline = null,
-        ILogger<DocumentLogic>? logger = null)
+        ILogger<DocumentLogic>? logger = null,
+        IOptions<AppSettings>? appSettings = null)
     {
         _documentRepo = documentRepo;
         _documentBlobService = documentBlobService;
         _documentIngestionPipeline = documentIngestionPipeline;
         _logger = logger;
+        _appSettings = appSettings?.Value ?? new AppSettings();
+    }
+
+    public void SetChatTurnContext(string? mobile, string? baseUrl)
+    {
+        ChatContext.Value = new ChatTurnContext(mobile?.Trim(), baseUrl?.Trim());
+    }
+
+    public void ClearChatTurnContext()
+    {
+        ChatContext.Value = null;
     }
 
     public async Task<DocumentStatisticsDto?> GetStatisticsAsync(CancellationToken cancellationToken = default)
@@ -306,6 +326,66 @@ public class DocumentLogic : IDocumentLogic
         return DocumentAdapter.MapSimilarityMatches(response);
     }
 
+    public string BuildDocumentDownloadLink(long documentId)
+    {
+        if (documentId <= 0)
+        {
+            return "Unable to generate secure download link.";
+        }
+
+        var baseUrl = ChatContext.Value?.BaseUrl;
+        var mobile = ChatContext.Value?.Mobile;
+        var token = EncryptDownloadToken(mobile, documentId, _appSettings.EncryptionKey);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return "Unable to generate secure download link.";
+        }
+
+        var relativeUrl = $"/api/ChatDocumentDownload?token={token}";
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return relativeUrl;
+        }
+
+        var normalizedBaseUrl = baseUrl.Trim().TrimEnd('/');
+        return Uri.TryCreate(normalizedBaseUrl, UriKind.Absolute, out _)
+            ? normalizedBaseUrl + relativeUrl
+            : relativeUrl;
+    }
+
+    public bool TryDecodeDocumentDownloadToken(string? token, out long documentId)
+    {
+        documentId = 0;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return false;
+        }
+
+        var decryptedJson = DecryptDownloadToken(token, _appSettings.EncryptionKey);
+        if (string.IsNullOrWhiteSpace(decryptedJson))
+        {
+            return false;
+        }
+
+        TokenPayload? payload;
+        try
+        {
+            payload = JsonSerializer.Deserialize<TokenPayload>(decryptedJson);
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (payload == null || payload.DocumentId <= 0)
+        {
+            return false;
+        }
+
+        documentId = payload.DocumentId;
+        return true;
+    }
+
     private static void ValidateTitle(string? title)
     {
         if (string.IsNullOrWhiteSpace(title))
@@ -356,4 +436,71 @@ public class DocumentLogic : IDocumentLogic
             throw new ValidationException($"File type '{extension}' is not allowed for '{file.FileName}'.");
         }
     }
+
+    private static string EncryptDownloadToken(string? mobile, long documentId, string? encryptionKey)
+    {
+        if (documentId <= 0 || string.IsNullOrWhiteSpace(encryptionKey))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            var payloadJson = JsonSerializer.Serialize(new TokenPayload(mobile ?? string.Empty, documentId));
+            var clearBytes = Encoding.UTF8.GetBytes(payloadJson);
+
+            using var aes = Aes.Create();
+            using var pdb = new Rfc2898DeriveBytes(encryptionKey, TokenSalt, 1000, HashAlgorithmName.SHA256);
+            aes.Key = pdb.GetBytes(32);
+            aes.IV = pdb.GetBytes(16);
+
+            using var ms = new MemoryStream();
+            using (var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write))
+            {
+                cs.Write(clearBytes, 0, clearBytes.Length);
+                cs.FlushFinalBlock();
+            }
+
+            return Uri.EscapeDataString(Convert.ToBase64String(ms.ToArray()));
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    private static string DecryptDownloadToken(string token, string? encryptionKey)
+    {
+        if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(encryptionKey))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            var normalized = Uri.UnescapeDataString(token).Replace(" ", "+", StringComparison.Ordinal);
+            var cipherBytes = Convert.FromBase64String(normalized);
+
+            using var aes = Aes.Create();
+            using var pdb = new Rfc2898DeriveBytes(encryptionKey, TokenSalt, 1000, HashAlgorithmName.SHA256);
+            aes.Key = pdb.GetBytes(32);
+            aes.IV = pdb.GetBytes(16);
+
+            using var ms = new MemoryStream();
+            using (var cs = new CryptoStream(ms, aes.CreateDecryptor(), CryptoStreamMode.Write))
+            {
+                cs.Write(cipherBytes, 0, cipherBytes.Length);
+                cs.FlushFinalBlock();
+            }
+
+            return Encoding.UTF8.GetString(ms.ToArray());
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    private sealed record ChatTurnContext(string? Mobile, string? BaseUrl);
+    private sealed record TokenPayload(string Mobile, long DocumentId);
 }
