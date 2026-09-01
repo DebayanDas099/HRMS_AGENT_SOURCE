@@ -69,6 +69,65 @@ public class LeaveRepo : ILeaveRepo
         };
     }
 
+    public async Task<MSSQLResponse?> ValidateAndApplyLeaveByUserAsync(
+        string? mobile,
+        DateTime startDate,
+        DateTime endDate,
+        string? reason,
+        CancellationToken cancellationToken = default)
+    {
+        var sqlParams = new List<SqlParameter>
+        {
+            new()
+            {
+                ParameterName = "@mobile",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 20,
+                Value = Utils.IIFStringOrDBNull(mobile)
+            },
+            new()
+            {
+                ParameterName = "@start_date",
+                DbType = DbType.Date,
+                Direction = ParameterDirection.Input,
+                Value = startDate.Date
+            },
+            new()
+            {
+                ParameterName = "@end_date",
+                DbType = DbType.Date,
+                Direction = ParameterDirection.Input,
+                Value = endDate.Date
+            },
+            new()
+            {
+                ParameterName = "@reason",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = -1,
+                Value = Utils.IIFStringOrDBNull(reason)
+            }
+        };
+
+        sqlParams.AddRange(CreateOutputParams());
+
+        var rowsAffected = await _sqlHelper.ExecuteNonQuery(new ExecuteNonQueryRequest
+        {
+            CommandText = "[dbo].[Validate_And_Apply_Leave_By_User]",
+            CommandTimeout = SqlCommon.SQLCommandTimeOut,
+            CommandType = CommandType.StoredProcedure,
+            ConnectionProperties = _serviceContext.SQLConnectionModel,
+            Parameters = sqlParams.ToArray()
+        });
+
+        return new MSSQLResponse
+        {
+            RowsAffected = rowsAffected,
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+    }
+
     private static SqlParameter[] CreateOutputParams()
     {
         return
