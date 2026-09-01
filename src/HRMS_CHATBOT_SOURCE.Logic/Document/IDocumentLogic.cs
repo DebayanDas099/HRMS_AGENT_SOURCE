@@ -5,6 +5,10 @@ namespace HRMS_CHATBOT_SOURCE.Logic;
 
 public interface IDocumentLogic
 {
+    void SetChatTurnContext(string? mobile, string? baseUrl);
+
+    void ClearChatTurnContext();
+
     Task<DocumentStatisticsDto?> GetStatisticsAsync(CancellationToken cancellationToken = default);
 
     Task<DocumentListResponseDto?> GetDocumentsAsync(
@@ -34,4 +38,8 @@ public interface IDocumentLogic
         int minScore = 65,
         int topCount = 5,
         CancellationToken cancellationToken = default);
+
+    string BuildDocumentDownloadLink(long documentId);
+
+    bool TryDecodeDocumentDownloadToken(string? token, out long documentId);
 }
