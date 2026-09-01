@@ -1,5 +1,6 @@
 using System.Text;
 using HRMS_CHATBOT_SOURCE.Domain.Constants;
+using HRMS_CHATBOT_SOURCE.Logic.Common;
 
 namespace HRMS_CHATBOT_SOURCE.Agent.Skills;
 
@@ -112,5 +113,23 @@ public static class SupervisorSkillComposer
         return "Authenticated employee mobile for this session: "
             + mobile.Trim()
             + ". Use this mobile for leave tools and agent lookups; do not ask the user for their mobile number again.";
+    }
+
+    public static string? BuildParsedDateNotice(string? userMessage, ICommonLogic commonLogic)
+    {
+        var parsed = commonLogic.ParseRelativeDateFromUserMessage(userMessage);
+        if (!parsed.Found || string.IsNullOrWhiteSpace(parsed.StartDate))
+        {
+            return null;
+        }
+
+        var end = parsed.EndDate ?? parsed.StartDate;
+        return "Parsed date context from the user's latest message:"
+            + Environment.NewLine
+            + $"- Phrase: \"{parsed.Phrase}\""
+            + Environment.NewLine
+            + $"- Resolved range: {parsed.StartDate} to {end}"
+            + Environment.NewLine
+            + "- Use this resolved date range for any date-bounded request unless the user corrects it.";
     }
 }
