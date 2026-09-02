@@ -7,6 +7,7 @@ using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Settings;
 using HRMS_CHATBOT_SOURCE.Domain.Helpers;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
+using HRMS_CHATBOT_SOURCE.Logic.Common;
 using HRMS_CHATBOT_SOURCE.Logic.Adapter;
 using HRMS_CHATBOT_SOURCE.Repo.Document;
 using Microsoft.AspNetCore.Http;
@@ -26,6 +27,7 @@ public class DocumentLogic : IDocumentLogic
     private readonly IDocumentRepo _documentRepo;
     private readonly IDocumentBlobService _documentBlobService;
     private readonly IDocumentIngestionPipeline? _documentIngestionPipeline;
+    private readonly ICommonLogic? _commonLogic;
     private readonly ILogger<DocumentLogic>? _logger;
     private readonly AppSettings _appSettings;
 
@@ -33,12 +35,14 @@ public class DocumentLogic : IDocumentLogic
         IDocumentRepo documentRepo,
         IDocumentBlobService documentBlobService,
         IDocumentIngestionPipeline? documentIngestionPipeline = null,
+        ICommonLogic? commonLogic = null,
         ILogger<DocumentLogic>? logger = null,
         IOptions<AppSettings>? appSettings = null)
     {
         _documentRepo = documentRepo;
         _documentBlobService = documentBlobService;
         _documentIngestionPipeline = documentIngestionPipeline;
+        _commonLogic = commonLogic;
         _logger = logger;
         _appSettings = appSettings?.Value ?? new AppSettings();
     }
@@ -384,6 +388,76 @@ public class DocumentLogic : IDocumentLogic
 
         documentId = payload.DocumentId;
         return true;
+    }
+
+    public async Task<string> SendDocumentLinkByMailAsync(
+        long documentId,
+        string? documentName = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (documentId <= 0)
+        {
+            return "Invalid document id.";
+        }
+
+        if (_commonLogic == null)
+        {
+            return "Mail service is not available right now.";
+        }
+
+        var mobile = ChatContext.Value?.Mobile;
+        if (string.IsNullOrWhiteSpace(mobile))
+        {
+            return "Unable to identify your registered mobile number for this chat.";
+        }
+
+        var recipient = await _commonLogic
+            .GetUserEmailByMobileAsync(mobile, cancellationToken)
+            .ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(recipient))
+        {
+            return $"No active email id found for mobile {mobile}.";
+        }
+
+        var downloadLink = BuildDocumentDownloadLink(documentId);
+        if (downloadLink.StartsWith("Unable to generate", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Unable to generate download link for email.";
+        }
+
+        var safeName = string.IsNullOrWhiteSpace(documentName)
+            ? $"Document #{documentId}"
+            : documentName.Trim();
+        var subject = $"HRMS Document Link - {safeName}";
+        var body =
+            "<p>Dear User,</p>"
+            + "<p>"
+            + $"As requested, please find the <b>{safeName}</b> document available for your reference."
+            + "</p>"
+            + "<p>"
+            + "You can download the document by clicking the button below:"
+            + "</p>"
+            + "<p>"
+            + $"<a href=\"{downloadLink}\" "
+            + "style=\"display:inline-block;padding:10px 22px;background:#1a73e8;color:#ffffff;text-decoration:none;border-radius:5px;font-weight:bold;\">"
+            + $"Download {safeName}"
+            + "</a>"
+            + "</p>"
+            + "<p>"
+            + "If you need any further assistance, please contact the HRMS Team."
+            + "</p>"
+            + "<p>"
+            + "Regards,<br/>"
+            + "<b>HRMS Team</b>"
+            + "</p>";
+
+        var responseCode = await _commonLogic
+            .SendMailNewAsync(recipient, subject, body, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        return responseCode == 1
+            ? $"Mail sent successfully to {recipient}."
+            : $"Failed to send mail to {recipient}.";
     }
 
     private static void ValidateTitle(string? title)

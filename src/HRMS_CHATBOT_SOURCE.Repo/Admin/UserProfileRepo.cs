@@ -136,6 +136,52 @@ public class UserProfileRepo : IUserProfileRepo
         return string.IsNullOrWhiteSpace(mobile) ? null : mobile.Trim();
     }
 
+    public async Task<string?> GetUserEmailByMobileAsync(
+        string? mobile,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(mobile))
+        {
+            return null;
+        }
+
+        var sqlParams = new SqlParameter[]
+        {
+            new()
+            {
+                ParameterName = "@mobile",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 20,
+                Value = mobile.Trim()
+            }
+        };
+
+        var response = new MSSQLResponse
+        {
+            Data = await _sqlHelper.FetchData(new ExecuteDataSetRequest
+            {
+                CommandText = "[dbo].[Get_User_Email_By_Mobile]",
+                CommandTimeout = SqlCommon.SQLCommandTimeOut,
+                CommandType = CommandType.StoredProcedure,
+                ConnectionProperties = _serviceContext.SQLConnectionModel,
+                IsMultipleTables = true,
+                Parameters = sqlParams
+            }),
+            RowsAffected = null,
+            OutputParameters = null
+        };
+
+        if (response.Data is not DataSet { Tables.Count: > 0 } dataSet
+            || dataSet.Tables[0].Rows.Count == 0)
+        {
+            return null;
+        }
+
+        var email = Convert.ToString(dataSet.Tables[0].Rows[0]["usp_mailid"]);
+        return string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+    }
+
     public async Task<MSSQLResponse?> UpdateLastAccessedAsync(
         string? userId,
         CancellationToken cancellationToken = default)
