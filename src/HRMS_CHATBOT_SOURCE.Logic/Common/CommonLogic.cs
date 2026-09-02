@@ -1,15 +1,34 @@
 using System.Globalization;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
+using HRMS_CHATBOT_SOURCE.Repo.Admin;
 using Microsoft.Recognizers.Text;
 using Microsoft.Recognizers.Text.DateTime;
+using Microsoft.Extensions.Logging;
 
 namespace HRMS_CHATBOT_SOURCE.Logic.Common;
 
 public sealed class CommonLogic : ICommonLogic
 {
     private const string DateFormat = "yyyy-MM-dd";
+    private const string MailApiUrl = "https://bpilmobile.bergerindia.com/mccapis/email/v1/send";
     private static readonly TimeZoneInfo IstZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+    private readonly IUserProfileRepo? _userProfileRepo;
+    private readonly Microsoft.Extensions.Configuration.IConfiguration? _configuration;
+    private readonly ILogger<CommonLogic>? _logger;
+
+    public CommonLogic(
+        IUserProfileRepo? userProfileRepo = null,
+        Microsoft.Extensions.Configuration.IConfiguration? configuration = null,
+        ILogger<CommonLogic>? logger = null)
+    {
+        _userProfileRepo = userProfileRepo;
+        _configuration = configuration;
+        _logger = logger;
+    }
 
     public DateTime GetReferenceDateTime(DateTime? utcNow = null)
     {
@@ -118,6 +137,93 @@ public sealed class CommonLogic : ICommonLogic
         }
 
         return ParseRelativeDate(message.Trim(), referenceDate);
+    }
+
+    public async Task<string?> GetUserEmailByMobileAsync(string? mobile, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(mobile) || _userProfileRepo == null)
+        {
+            return null;
+        }
+
+        return await _userProfileRepo
+            .GetUserEmailByMobileAsync(mobile.Trim(), cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<int> SendMailNewAsync(
+        string toAddress,
+        string mailSubject,
+        string mailBody,
+        string? attachmentPath = null,
+        string? ccAddress = null,
+        string? bccAddress = null,
+        string? fromAddress = null,
+        string? senderApp = null,
+        string? senderTask = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(toAddress))
+        {
+            return 0;
+        }
+
+        var authToken = _configuration?["MCCWebAPIAuthToken"];
+        if (string.IsNullOrWhiteSpace(authToken))
+        {
+            _logger?.LogWarning("MCCWebAPIAuthToken is missing, mail send skipped.");
+            return 0;
+        }
+
+        try
+        {
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
+            var payload = new
+            {
+                mailFromAddress = string.IsNullOrWhiteSpace(fromAddress)
+                    ? (_configuration?["AppSettings:MailFromAddress"] ?? "noreply@mccit.co.in")
+                    : fromAddress.Trim(),
+                mailToAddress = toAddress.Trim(),
+                mailCCAddress = ccAddress ?? string.Empty,
+                mailBCCAddress = bccAddress ?? string.Empty,
+                mailSubject = mailSubject ?? string.Empty,
+                mailBody = mailBody ?? string.Empty,
+                mailAttachement = attachmentPath ?? string.Empty,
+                mailSenderApp = string.IsNullOrWhiteSpace(senderApp) ? "HRMS_CHATBOT_SOURCE" : senderApp.Trim(),
+                mailSenderTask = string.IsNullOrWhiteSpace(senderTask) ? "DocumentAgent" : senderTask.Trim()
+            };
+
+            var postData = JsonSerializer.Serialize(payload);
+            using var request = new HttpRequestMessage(HttpMethod.Post, MailApiUrl)
+            {
+                Content = new StringContent(postData, Encoding.UTF8, "application/json")
+            };
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", authToken.Trim());
+
+            using var client = new HttpClient();
+            using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(responseJson))
+            {
+                return 0;
+            }
+
+            using var json = JsonDocument.Parse(responseJson);
+            if (json.RootElement.TryGetProperty("responseCode", out var responseCode)
+                && responseCode.TryGetInt32(out var code))
+            {
+                return code;
+            }
+
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Mail API call failed for recipient {ToAddress}.", toAddress);
+            return 0;
+        }
     }
 
     private static string NormalizePhrase(string phrase)
