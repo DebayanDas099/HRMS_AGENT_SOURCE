@@ -145,7 +145,21 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
 
         await foreach (var evt in run.WatchStreamAsync().WithCancellation(cancellationToken).ConfigureAwait(false))
         {
-            if (evt is AgentResponseUpdateEvent update)
+            if (evt is ExecutorFailedEvent failed)
+            {
+                if (GuardrailViolationException.TryUnwrap(failed.Data, out var blocked))
+                    throw blocked;
+
+                throw failed.Data ?? new InvalidOperationException($"Executor '{failed.ExecutorId}' failed.");
+            }
+            else if (evt is WorkflowErrorEvent workflowError)
+            {
+                if (GuardrailViolationException.TryUnwrap(workflowError.Exception, out var blocked))
+                    throw blocked;
+
+                throw workflowError.Exception ?? new InvalidOperationException("Workflow error.");
+            }
+            else if (evt is AgentResponseUpdateEvent update)
             {
                 lastSpeaker = update.ExecutorId;
                 if (!string.IsNullOrEmpty(update.Update.Text))
