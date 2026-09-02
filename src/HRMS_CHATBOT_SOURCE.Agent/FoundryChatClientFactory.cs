@@ -57,7 +57,7 @@ internal static class FoundryChatClientFactory
             .AsIChatClient()
             .AsBuilder()
             .UseFunctionInvocation()
-            //.UseMccGuardrails()
+            .UseMccGuardrails()
             .Build(services);
 
         logger.LogInformation("HRMS chat client configured for deployment {Deployment}.", deployment);
