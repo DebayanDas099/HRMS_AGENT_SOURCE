@@ -166,6 +166,20 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
 
                 break;
             }
+            else if (evt is ExecutorFailedEvent failed)
+            {
+                if (GuardrailViolationException.TryUnwrap(failed.Data, out var blocked))
+                    throw blocked;
+
+                throw failed.Data ?? new InvalidOperationException($"Executor '{failed.ExecutorId}' failed.");
+            }
+            else if (evt is WorkflowErrorEvent workflowError)
+            {
+                if (GuardrailViolationException.TryUnwrap(workflowError.Exception, out var blocked))
+                    throw blocked;
+
+                throw workflowError.Exception ?? new InvalidOperationException("Workflow error.");
+            }
         }
 
         await LogCheckpointAsync(sessionId, cancellationToken).ConfigureAwait(false);
