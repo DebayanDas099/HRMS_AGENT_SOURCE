@@ -1,43 +1,38 @@
-using HRMS_CHATBOT_SOURCE.Agent;
+using HRMS_CHATBOT_SOURCE.Agent.Tools;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
-using HRMS_CHATBOT_SOURCE.Domain.Dto.Settings;
 using HRMS_CHATBOT_SOURCE.Logic;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 namespace HRMS_CHATBOT_SOURCE.Tests.Agent;
 
-public class DocumentKernelFunctionsTests
+public class DocumentAgentToolsTests
 {
     [Fact]
-    public void BuildDocumentDownloadLink_UsesCurrentChatContextForMobileAndBaseUrl()
+    public void BuildDocumentDownloadLink_DelegatesToDocumentLogic()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<IChatTurnContextAccessor, ChatTurnContextAccessor>();
         services.AddScoped<IDocumentLogic>(_ => new FakeDocumentLogic());
         using var provider = services.BuildServiceProvider();
 
         var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
-        var accessor = provider.GetRequiredService<IChatTurnContextAccessor>();
-        var appSettings = Options.Create(new AppSettings { EncryptionKey = "unit-test-key" });
-        var functions = new DocumentKernelFunctions(scopeFactory, accessor, appSettings);
+        var tools = new DocumentAgentTools(scopeFactory);
 
-        accessor.Set("1234567890", "https://localhost:7249");
-        var link = functions.BuildDocumentDownloadLink(13);
-        accessor.Clear();
+        var link = tools.BuildDocumentDownloadLink(13);
 
-        Assert.StartsWith("https://localhost:7249/api/ChatDocumentDownload?token=", link, StringComparison.Ordinal);
-
-        var token = link.Split("token=", StringSplitOptions.None)[1];
-        var isValid = DocumentDownloadTokenCodec.TryDecrypt(token, "unit-test-key", out var mobile, out var documentId);
-        Assert.True(isValid);
-        Assert.Equal("1234567890", mobile);
-        Assert.Equal(13, documentId);
+        Assert.Equal("https://localhost:7249/api/ChatDocumentDownload?token=test-token", link);
     }
 
     private sealed class FakeDocumentLogic : IDocumentLogic
     {
+        public void SetChatTurnContext(string? mobile, string? baseUrl)
+        {
+        }
+
+        public void ClearChatTurnContext()
+        {
+        }
+
         public Task<DocumentStatisticsDto?> GetStatisticsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<DocumentStatisticsDto?>(null);
 
@@ -75,5 +70,14 @@ public class DocumentKernelFunctionsTests
             int topCount = 5,
             CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<DocumentSimilarityMatchDto>>([]);
+
+        public string BuildDocumentDownloadLink(long documentId)
+            => $"https://localhost:7249/api/ChatDocumentDownload?token=test-token";
+
+        public bool TryDecodeDocumentDownloadToken(string? token, out long documentId)
+        {
+            documentId = 13;
+            return true;
+        }
     }
 }

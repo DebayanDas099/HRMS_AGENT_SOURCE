@@ -1,11 +1,8 @@
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Request;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Logic;
-using HRMS_CHATBOT_SOURCE.Agent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
-using HRMS_CHATBOT_SOURCE.Domain.Dto.Settings;
 
 namespace HRMS_CHATBOT_SOURCE.Controllers.Areas.Chat;
 
@@ -18,19 +15,13 @@ public class ChatController : Controller
 {
     private readonly IChatLogic _chatLogic;
     private readonly IDocumentLogic _documentLogic;
-    private readonly IChatTurnContextAccessor _chatTurnContextAccessor;
-    private readonly AppSettings _appSettings;
 
     public ChatController(
         IChatLogic chatLogic,
-        IDocumentLogic documentLogic,
-        IChatTurnContextAccessor chatTurnContextAccessor,
-        IOptions<AppSettings> appSettings)
+        IDocumentLogic documentLogic)
     {
         _chatLogic = chatLogic;
         _documentLogic = documentLogic;
-        _chatTurnContextAccessor = chatTurnContextAccessor;
-        _appSettings = appSettings.Value;
     }
 
     /// <summary>
@@ -57,7 +48,7 @@ public class ChatController : Controller
         CancellationToken cancellationToken)
     {
         var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-        _chatTurnContextAccessor.Set(request?.Mobile, baseUrl);
+        _documentLogic.SetChatTurnContext(request?.Mobile, baseUrl);
 
         try
         {
@@ -65,7 +56,7 @@ public class ChatController : Controller
         }
         finally
         {
-            _chatTurnContextAccessor.Clear();
+            _documentLogic.ClearChatTurnContext();
         }
     }
 
@@ -80,11 +71,10 @@ public class ChatController : Controller
             return BadRequest("Missing token.");
         }
 
-        if (!DocumentDownloadTokenCodec.TryDecrypt(token, _appSettings.EncryptionKey, out var mobile, out var documentId))
+        if (!_documentLogic.TryDecodeDocumentDownloadToken(token, out var documentId))
         {
             return BadRequest("Invalid token.");
         }
-        _ = mobile;
 
         var result = await _documentLogic.DownloadDocumentAsync(documentId, cancellationToken);
         if (result == null || result.FileContent.Length == 0)

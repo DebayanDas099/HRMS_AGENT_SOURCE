@@ -19,7 +19,7 @@ public sealed class HrmsHandoffWorkflowFactory
     private readonly HandoffWorkflowTemplate _blueprintTemplate;
     private readonly PolicyKnowledgeTools _policyKnowledgeTools;
     private readonly LeaveApplicationTools _leaveApplicationTools;
-    private readonly IDocumentKernelFunctionCatalog _documentKernelFunctionCatalog;
+    private readonly DocumentAgentTools _documentAgentTools;
     private readonly RelativeDateParsingTools _relativeDateParsingTools;
     private readonly IServiceScopeFactory _scopeFactory;
 
@@ -28,7 +28,7 @@ public sealed class HrmsHandoffWorkflowFactory
         HandoffWorkflowTemplate blueprintTemplate,
         PolicyKnowledgeTools policyKnowledgeTools,
         LeaveApplicationTools leaveApplicationTools,
-        IDocumentKernelFunctionCatalog documentKernelFunctionCatalog,
+        DocumentAgentTools documentAgentTools,
         RelativeDateParsingTools relativeDateParsingTools,
         IServiceScopeFactory scopeFactory)
     {
@@ -36,7 +36,7 @@ public sealed class HrmsHandoffWorkflowFactory
         _blueprintTemplate = blueprintTemplate;
         _policyKnowledgeTools = policyKnowledgeTools;
         _leaveApplicationTools = leaveApplicationTools;
-        _documentKernelFunctionCatalog = documentKernelFunctionCatalog;
+        _documentAgentTools = documentAgentTools;
         _relativeDateParsingTools = relativeDateParsingTools;
         _scopeFactory = scopeFactory;
     }
@@ -133,7 +133,11 @@ public sealed class HrmsHandoffWorkflowFactory
 
         if (string.Equals(agentName, AgentNames.Document, StringComparison.OrdinalIgnoreCase))
         {
-            return _documentKernelFunctionCatalog.GetTools().ToList();
+            return
+            [
+                AIFunctionFactory.Create(_documentAgentTools.SearchDocumentsBySimilarityAsync),
+                AIFunctionFactory.Create(_documentAgentTools.BuildDocumentDownloadLink)
+            ];
         }
 
         if (string.Equals(agentName, AgentNames.Supervisor, StringComparison.OrdinalIgnoreCase))

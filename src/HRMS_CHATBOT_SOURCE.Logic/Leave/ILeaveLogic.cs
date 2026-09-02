@@ -12,8 +12,8 @@ public interface ILeaveLogic
 
     Task<string> ValidateAndApplyLeaveAsync(
         string? mobile,
-        DateTime? fromDate,
-        DateTime? toDate,
+        DateTime fromDate,
+        DateTime toDate,
         string? reason,
         CancellationToken cancellationToken = default);
 }

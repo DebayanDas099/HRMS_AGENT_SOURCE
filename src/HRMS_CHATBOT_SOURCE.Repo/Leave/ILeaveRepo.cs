@@ -9,4 +9,11 @@ public interface ILeaveRepo
         DateTime startDate,
         DateTime endDate,
         CancellationToken cancellationToken = default);
+
+    Task<MSSQLResponse?> ValidateAndApplyLeaveByUserAsync(
+        string? mobile,
+        DateTime startDate,
+        DateTime endDate,
+        string? reason,
+        CancellationToken cancellationToken = default);
 }

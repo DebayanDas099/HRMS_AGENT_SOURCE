@@ -7,7 +7,7 @@ public class CosmosSettings
     public const string SectionName = "Cosmos";
 
     [JsonProperty("database_name")]
-    public string DatabaseName { get; set; } = "HrmsChatbot";
+    public string DatabaseName { get; set; } = "HRMS_AGENT_DB";
 
     /// <summary>
     /// Per the mandated Cosmos DB layout: container "checkpoints", partition key

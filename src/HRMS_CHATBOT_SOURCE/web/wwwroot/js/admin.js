@@ -5,6 +5,23 @@
     const sidebarToggle = document.getElementById('sidebarToggle');
     const mobileToggle = document.getElementById('mobileToggle');
     const logoutBtn = document.getElementById('logoutBtn');
+    const themeToggle = document.getElementById('themeToggle');
+    const THEME_STORAGE_KEY = 'hrms-admin-theme';
+
+    function applyTheme(isDark) {
+        document.documentElement.classList.toggle('theme-dark', isDark);
+        if (themeToggle) {
+            themeToggle.checked = isDark;
+        }
+        localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
+    }
+
+    if (themeToggle) {
+        themeToggle.checked = document.documentElement.classList.contains('theme-dark');
+        themeToggle.addEventListener('change', function () {
+            applyTheme(themeToggle.checked);
+        });
+    }
 
     if (window.HrmsAdminAuth) {
         window.HrmsAdminAuth.restoreSession();
