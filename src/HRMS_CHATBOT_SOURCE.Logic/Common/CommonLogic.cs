@@ -26,9 +26,10 @@ public sealed class CommonLogic : ICommonLogic
 
         var reference = referenceDate ?? GetReferenceDateTime();
         var trimmed = phrase.Trim();
+        var normalized = NormalizePhrase(trimmed);
 
         var matches = DateTimeRecognizer.RecognizeDateTime(
-            trimmed,
+            normalized,
             Culture.English,
             DateTimeOptions.None,
             reference);
@@ -38,24 +39,75 @@ public sealed class CommonLogic : ICommonLogic
             return NotFound(trimmed, "No date could be recognized in the phrase.");
         }
 
-        var match = matches.FirstOrDefault(m =>
-            string.Equals(m.TypeName, "daterange", StringComparison.OrdinalIgnoreCase))
-            ?? matches[0];
-
-        if (!TryExtractRange(match, out var start, out var end, out var type))
+        var extracted = new List<(DateTime Start, DateTime End, string? Type)>();
+        foreach (var match in matches)
         {
-            return NotFound(trimmed, "Date was recognized but start/end could not be resolved.");
+            if (!TryExtractRange(match, out var rangeStart, out var rangeEnd, out var type))
+            {
+                continue;
+            }
+
+            if (rangeStart == null && rangeEnd == null)
+            {
+                continue;
+            }
+
+            var start = (rangeStart ?? rangeEnd)!.Value.Date;
+            var end = (rangeEnd ?? rangeStart)!.Value.Date;
+            extracted.Add((start, end, type));
         }
+
+        var ranges = StabilizeRanges(extracted);
 
         return new RelativeDateParseResult
         {
-            Found = true,
+            Found = ranges.Count > 0,
             Phrase = trimmed,
-            StartDate = start?.ToString(DateFormat, CultureInfo.InvariantCulture),
-            EndDate = end?.ToString(DateFormat, CultureInfo.InvariantCulture),
-            Type = type,
-            Message = "Date range resolved successfully."
+            Message = ranges.Count > 1
+                    ? $"Resolved {ranges.Count} date ranges. Call leave balance once per range."
+                    : "Date range resolved successfully.",
+            Ranges = ranges
         };
+    }
+
+    private static IReadOnlyList<RelativeDateRangeDto> StabilizeRanges(
+        IReadOnlyList<(DateTime Start, DateTime End, string? Type)> extracted)
+    {
+        if (extracted.Count == 0)
+        {
+            return [];
+        }
+
+        var expandSingleDays = extracted.Count > 1;
+        var unique = new List<(DateTime Start, DateTime End, string? Type)>();
+
+        foreach (var item in extracted.OrderBy(r => r.Start).ThenBy(r => r.End))
+        {
+            var start = item.Start;
+            var end = item.End;
+            if (expandSingleDays && start == end)
+            {
+                start = new DateTime(start.Year, start.Month, 1);
+                end = new DateTime(start.Year, start.Month, DateTime.DaysInMonth(start.Year, start.Month));
+            }
+
+            if (unique.Any(existing => existing.Start == start && existing.End == end))
+            {
+                continue;
+            }
+
+            unique.Add((start, end, item.Type));
+        }
+
+        return unique
+            .Select(item => new RelativeDateRangeDto
+            {
+                StartDate = item.Start.ToString(DateFormat, CultureInfo.InvariantCulture),
+                EndDate = item.End.ToString(DateFormat, CultureInfo.InvariantCulture),
+                Type = item.Type,
+                Label = item.Start.ToString("MMMM yyyy", CultureInfo.InvariantCulture)
+            })
+            .ToList();
     }
 
     public RelativeDateParseResult ParseRelativeDateFromUserMessage(string? message, DateTime? referenceDate = null)
@@ -66,6 +118,13 @@ public sealed class CommonLogic : ICommonLogic
         }
 
         return ParseRelativeDate(message.Trim(), referenceDate);
+    }
+
+    private static string NormalizePhrase(string phrase)
+    {
+        var text = phrase.Replace("current and last month", "this month and last month", StringComparison.OrdinalIgnoreCase);
+        text = text.Replace("this and last month", "this month and last month", StringComparison.OrdinalIgnoreCase);
+        return text.Replace("current month", "this month", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryExtractRange(

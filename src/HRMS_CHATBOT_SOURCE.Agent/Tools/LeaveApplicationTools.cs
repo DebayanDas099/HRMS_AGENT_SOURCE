@@ -35,9 +35,10 @@ public sealed class LeaveApplicationTools
 
     [Description(
         "Gets the employee's leave balance summary (accrued, applied, remaining, loss of pay, "
-        + "contract status) for the given mobile number over an optional date range. Defaults to "
-        + "the current month when dates are omitted. Ask the employee for their registered mobile "
-        + "number if you do not already have it.")]
+        + "contract status) for the given mobile number over one session date range. Defaults to "
+        + "the current month when dates are omitted. This tool covers a single range per call; if "
+        + "several date ranges were parsed, invoke it once per range. Ask the employee for their "
+        + "registered mobile number if you do not already have it.")]
     public async Task<string> GetLeaveStatusAsync(
         [Description("The employee's registered mobile number.")] string mobile,
         [Description("Session start date (yyyy-MM-dd). Defaults to the first day of the current month.")] string? startDate = null,

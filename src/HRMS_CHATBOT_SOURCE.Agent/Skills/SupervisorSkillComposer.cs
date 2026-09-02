@@ -118,18 +118,49 @@ public static class SupervisorSkillComposer
     public static string? BuildParsedDateNotice(string? userMessage, ICommonLogic commonLogic)
     {
         var parsed = commonLogic.ParseRelativeDateFromUserMessage(userMessage);
-        if (!parsed.Found || string.IsNullOrWhiteSpace(parsed.StartDate))
+        if (!parsed.Found || parsed.Ranges.Count == 0)
         {
             return null;
         }
 
-        var end = parsed.EndDate ?? parsed.StartDate;
-        return "Parsed date context from the user's latest message:"
-            + Environment.NewLine
-            + $"- Phrase: \"{parsed.Phrase}\""
-            + Environment.NewLine
-            + $"- Resolved range: {parsed.StartDate} to {end}"
-            + Environment.NewLine
-            + "- Use this resolved date range for any date-bounded request unless the user corrects it.";
+        var builder = new StringBuilder();
+        builder.AppendLine("Parsed date context from the user's latest message:");
+        builder.AppendLine($"- Phrase: \"{parsed.Phrase}\"");
+
+        if (parsed.Ranges.Count == 1)
+        {
+            var range = parsed.Ranges[0];
+            var end = range.EndDate ?? range.StartDate;
+            builder.AppendLine($"- Resolved range: {range.StartDate} to {end}");
+            builder.Append("- Use this resolved date range for any date-bounded request unless the user corrects it.");
+            return builder.ToString();
+        }
+
+        builder.AppendLine("- Resolved ranges:");
+        for (var i = 0; i < parsed.Ranges.Count; i++)
+        {
+            var range = parsed.Ranges[i];
+            var end = range.EndDate ?? range.StartDate;
+            var label = string.IsNullOrWhiteSpace(range.Label) ? string.Empty : $" ({range.Label})";
+            builder.AppendLine($"  {i + 1}. {range.StartDate} to {end}{label}");
+        }
+
+        var overallStart = parsed.Ranges
+            .Select(r => r.StartDate)
+            .Where(d => !string.IsNullOrWhiteSpace(d))
+            .OrderBy(d => d)
+            .FirstOrDefault();
+        var overallEnd = parsed.Ranges
+            .Select(r => r.EndDate ?? r.StartDate)
+            .Where(d => !string.IsNullOrWhiteSpace(d))
+            .OrderByDescending(d => d)
+            .FirstOrDefault();
+
+        builder.AppendLine("- For leave balance, call GetLeaveStatusAsync once per range with that startDate and endDate.");
+        builder.AppendLine("- Do not merge ranges into a single GetLeaveStatusAsync call.");
+        builder.AppendLine("- After every tool result is back, include every range in the final reply.");
+        builder.Append(
+            $"- For applying leave, use one overall from/to ({overallStart} through {overallEnd}); do not split.");
+        return builder.ToString();
     }
 }
