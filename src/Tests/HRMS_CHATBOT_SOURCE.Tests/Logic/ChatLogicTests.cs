@@ -2,8 +2,10 @@ using System.ComponentModel.DataAnnotations;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Request;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
+using HRMS_CHATBOT_SOURCE.Domain.Models;
 using HRMS_CHATBOT_SOURCE.Infrastructure.Core;
 using HRMS_CHATBOT_SOURCE.Logic;
+using HRMS_CHATBOT_SOURCE.Repo.Admin;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HRMS_CHATBOT_SOURCE.Tests.Logic;
@@ -85,6 +87,60 @@ public class ChatLogicTests
         Assert.Equal("1234567890", runtime.AuthenticatedMobile);
     }
 
+    [Fact]
+    public async Task SendMessageAsync_VerifiedAdmin_AddsLeaveApprovalAgentToTheEnabledList()
+    {
+        var (chatLogic, _, runtime) = Build(
+            enabledAgents: ["SupervisorAgent", "KnowledgeAgent"],
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" });
+
+        var response = await chatLogic.SendMessageAsync(Request("9999999999", "hello"));
+
+        Assert.Contains("LeaveApprovalAgent", response.EnabledAgents, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("KnowledgeAgent", response.EnabledAgents, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_NonAdmin_NeverGetsLeaveApprovalAgent()
+    {
+        var (chatLogic, _, runtime) = Build(
+            enabledAgents: ["SupervisorAgent", "KnowledgeAgent"],
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "N" });
+
+        var response = await chatLogic.SendMessageAsync(Request("9999999999", "hello"));
+
+        Assert.DoesNotContain("LeaveApprovalAgent", response.EnabledAgents, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_AnonymousCaller_NeverGetsLeaveApprovalAgent()
+    {
+        // No CurrentUser at all - the public, unauthenticated chat page shape.
+        var (chatLogic, _, runtime) = Build(enabledAgents: ["SupervisorAgent", "KnowledgeAgent"]);
+
+        var response = await chatLogic.SendMessageAsync(Request("9999999999", "hello"));
+
+        Assert.DoesNotContain("LeaveApprovalAgent", response.EnabledAgents, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_VerifiedAdmin_WithNoEmployeeAccess_StillRunsForLeaveApprovalOnly()
+    {
+        // The mobile typed into the admin test-chat box has no employee-side group
+        // access at all - the admin capability must not depend on that.
+        var (chatLogic, _, runtime) = Build(
+            enabledAgents: [],
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" });
+
+        var response = await chatLogic.SendMessageAsync(Request("0000000000", "list pending approvals"));
+
+        Assert.True(runtime.WasCalled);
+        Assert.Equal(["LeaveApprovalAgent"], response.EnabledAgents);
+        Assert.NotEqual(
+            "Your mobile number is not registered for this service. Please contact HR/IT support.",
+            response.Reply);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -124,8 +180,26 @@ public class ChatLogicTests
         var access = new SpyAgentAccessService(enabledAgents);
         var runtime = new SpyChatRuntime();
         var serviceContext = new FakeServiceContext { CurrentUser = currentUser };
-        var chatLogic = new ChatLogic(access, runtime, serviceContext, NullLogger<ChatLogic>.Instance);
+        var chatLogic = new ChatLogic(access, runtime, new StubUserProfileRepo(), serviceContext, NullLogger<ChatLogic>.Instance);
         return (chatLogic, access, runtime);
+    }
+
+    private sealed class StubUserProfileRepo : IUserProfileRepo
+    {
+        public Task<MSSQLResponse?> ValidateAdminLoginAsync(LoginRequest? request, CancellationToken cancellationToken = default)
+            => Task.FromResult<MSSQLResponse?>(null);
+
+        public Task<MSSQLResponse?> UpdateLastAccessedAsync(string? userId, CancellationToken cancellationToken = default)
+            => Task.FromResult<MSSQLResponse?>(null);
+
+        public Task<MSSQLResponse?> GetActiveMobileNumbersAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<MSSQLResponse?>(null);
+
+        public Task<string?> GetUserMobileByUserIdAsync(string? userId, CancellationToken cancellationToken = default)
+            => Task.FromResult<string?>(null);
+
+        public Task<string?> GetUserEmailByMobileAsync(string? mobile, CancellationToken cancellationToken = default)
+            => Task.FromResult<string?>(null);
     }
 
     private sealed class FakeServiceContext : IServiceContext

@@ -15,9 +15,14 @@ public static class AgentHandoffTopology
             [
                 Domain.Constants.AgentNames.LeaveApplication,
                 Domain.Constants.AgentNames.Document,
-                Domain.Constants.AgentNames.Knowledge
+                Domain.Constants.AgentNames.Knowledge,
+                Domain.Constants.AgentNames.LeaveApproval
             ],
             [Domain.Constants.AgentNames.LeaveApplication] =
+            [
+                Domain.Constants.AgentNames.Supervisor
+            ],
+            [Domain.Constants.AgentNames.LeaveApproval] =
             [
                 Domain.Constants.AgentNames.Supervisor
             ],

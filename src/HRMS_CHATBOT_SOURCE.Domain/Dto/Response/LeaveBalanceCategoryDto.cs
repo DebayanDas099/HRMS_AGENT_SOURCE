@@ -2,19 +2,16 @@ using Newtonsoft.Json;
 
 namespace HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 
-public class LeaveBalanceSummaryDto
+public class LeaveBalanceCategoryDto
 {
     [JsonProperty("emp_id")]
     public string EmpId { get; set; } = string.Empty;
 
-    [JsonProperty("accrued_leave_balance")]
-    public decimal AccruedLeaveBalance { get; set; }
+    [JsonProperty("leave_category")]
+    public string LeaveCategory { get; set; } = string.Empty;
 
-    [JsonProperty("applied_leave")]
-    public decimal AppliedLeave { get; set; }
-
-    [JsonProperty("remaining_leave_balance")]
-    public decimal RemainingLeaveBalance { get; set; }
+    [JsonProperty("category_value")]
+    public decimal CategoryValue { get; set; }
 
     [JsonProperty("loss_of_pay")]
     public decimal LossOfPay { get; set; }
@@ -27,7 +24,4 @@ public class LeaveBalanceSummaryDto
 
     [JsonProperty("contract_status")]
     public string? ContractStatus { get; set; }
-
-    [JsonProperty("leave_type_ld_lov_id_fk")]
-    public long LeaveTypeLdLovIdFk { get; set; }
 }

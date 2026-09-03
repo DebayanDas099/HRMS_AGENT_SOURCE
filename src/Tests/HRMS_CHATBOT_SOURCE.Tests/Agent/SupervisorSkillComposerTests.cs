@@ -34,7 +34,8 @@ public class SupervisorSkillComposerTests
                 AgentNames.Supervisor,
                 AgentNames.LeaveApplication,
                 AgentNames.Document,
-                AgentNames.Knowledge
+                AgentNames.Knowledge,
+                AgentNames.LeaveApproval
             ]);
 
         Assert.Contains("`LeaveApplicationAgent`", ExtractSection(instructions, "Available skills"));
@@ -54,6 +55,8 @@ public class SupervisorSkillComposerTests
         };
 
         var runtime = new HrmsChatRuntime(
+            null!,
+            null!,
             null!,
             null!,
             null!,
