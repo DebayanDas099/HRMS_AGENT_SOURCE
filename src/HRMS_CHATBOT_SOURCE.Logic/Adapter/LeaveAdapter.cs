@@ -7,29 +7,32 @@ namespace HRMS_CHATBOT_SOURCE.Logic.Adapter;
 
 internal static class LeaveAdapter
 {
-    internal static LeaveBalanceSummaryDto MapBalanceSummary(MSSQLResponse? response)
+    internal static IReadOnlyList<LeaveBalanceCategoryDto> MapBalanceCategories(MSSQLResponse? response)
     {
         EnsureSuccess(response);
 
         if (response?.Data is not DataSet { Tables.Count: > 0 } dataSet
             || dataSet.Tables[0].Rows.Count == 0)
         {
-            return new LeaveBalanceSummaryDto();
+            return [];
         }
 
-        var row = dataSet.Tables[0].Rows[0];
-        return new LeaveBalanceSummaryDto
+        var list = new List<LeaveBalanceCategoryDto>();
+        foreach (DataRow row in dataSet.Tables[0].Rows)
         {
-            EmpId = ReadOptionalString(row, "emp_id") ?? string.Empty,
-            AccruedLeaveBalance = ToDecimal(row["accrued_leave_balance"]),
-            AppliedLeave = ToDecimal(row["applied_leave"]),
-            RemainingLeaveBalance = ToDecimal(row["remaining_leave_balance"]),
-            LossOfPay = ToDecimal(row["loss_of_pay"]),
-            ContractEndDate = ReadOptionalDateTime(row, "contract_end_date"),
-            DaysUntilContractEnd = ReadOptionalInt(row, "days_until_contract_end"),
-            ContractStatus = ReadOptionalString(row, "contract_status"),
-            LeaveTypeLdLovIdFk = ReadOptionalLong(row, "leave_type_ld_lov_id_fk") ?? 0
-        };
+            list.Add(new LeaveBalanceCategoryDto
+            {
+                EmpId = ReadOptionalString(row, "emp_id") ?? string.Empty,
+                LeaveCategory = ReadOptionalString(row, "leave_category") ?? string.Empty,
+                CategoryValue = ToDecimal(row["category_value"]),
+                LossOfPay = ToDecimal(row["loss_of_pay"]),
+                ContractEndDate = ReadOptionalDateTime(row, "contract_end_date"),
+                DaysUntilContractEnd = ReadOptionalInt(row, "days_until_contract_end"),
+                ContractStatus = ReadOptionalString(row, "contract_status")
+            });
+        }
+
+        return list;
     }
 
     internal static List<PendingLeaveApplicationDto> MapPendingApplications(MSSQLResponse? response)

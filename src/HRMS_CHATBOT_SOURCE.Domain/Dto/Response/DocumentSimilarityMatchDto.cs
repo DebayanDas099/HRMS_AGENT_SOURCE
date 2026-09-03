@@ -22,6 +22,9 @@ public class DocumentSimilarityMatchDto
     [JsonProperty("dm_ingestion_status")]
     public string IngestionStatus { get; set; } = "Pending";
 
+    [JsonProperty("dm_created_date")]
+    public DateTime? CreatedDate { get; set; }
+
     [JsonProperty("similarity_score")]
     public int SimilarityScore { get; set; }
 }

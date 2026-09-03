@@ -24,6 +24,7 @@ public class LeaveRepo : ILeaveRepo
         string? mobile,
         DateTime startDate,
         DateTime endDate,
+        string? leaveCategory,
         CancellationToken cancellationToken = default)
     {
         var sqlParams = new List<SqlParameter>
@@ -49,6 +50,14 @@ public class LeaveRepo : ILeaveRepo
                 DbType = DbType.Date,
                 Direction = ParameterDirection.Input,
                 Value = endDate.Date
+            },
+            new()
+            {
+                ParameterName = "@leave_category",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 50,
+                Value = Utils.IIFStringOrDBNull(leaveCategory)
             }
         };
 

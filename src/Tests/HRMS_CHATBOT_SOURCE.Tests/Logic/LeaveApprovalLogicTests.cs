@@ -124,7 +124,7 @@ public class LeaveApprovalLogicTests
         public List<(string Reference, string Mobile, string Name, DateTime From, DateTime To, string Reason, DateTime AppliedOn)> Pending { get; } = [];
         public List<(string Reference, string NewStatus, string ApprovedBy, string? Note)> Updates { get; } = [];
 
-        public Task<MSSQLResponse?> GetLeaveDetailsByUserAsync(string? mobile, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
+        public Task<MSSQLResponse?> GetLeaveDetailsByUserAsync(string? mobile, DateTime startDate, DateTime endDate, string? leaveCategory, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
         public Task<MSSQLResponse?> ValidateAndApplyLeaveByUserAsync(string? mobile, DateTime startDate, DateTime endDate, string? leaveType, string? reason, CancellationToken cancellationToken = default)

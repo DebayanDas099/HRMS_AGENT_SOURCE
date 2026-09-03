@@ -4,10 +4,11 @@ namespace HRMS_CHATBOT_SOURCE.Logic;
 
 public interface ILeaveLogic
 {
-    Task<LeaveBalanceSummaryDto> GetLeaveBalanceSummaryAsync(
+    Task<IReadOnlyList<LeaveBalanceCategoryDto>> GetLeaveBalanceSummaryAsync(
         string? mobile,
         DateTime? startDate,
         DateTime? endDate,
+        string? leaveCategory,
         CancellationToken cancellationToken = default);
 
     Task<string> ValidateAndApplyLeaveAsync(
