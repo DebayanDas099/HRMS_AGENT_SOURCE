@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using HRMS_CHATBOT_SOURCE.Domain.Constants;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Request;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
@@ -72,6 +73,25 @@ public class ChatLogic : IChatLogic
         var enabledAgents = await _agentAccessService
             .GetEnabledAgentNamesAsync(mobile, cancellationToken)
             .ConfigureAwait(false);
+
+        // LeaveApprovalAgent is never granted by GetEnabledAgentNamesAsync (group-based,
+        // driven by the client-supplied mobile) - it is added here, and only here, from
+        // _serviceContext.CurrentUser, which JwtValidationMiddleware populates by
+        // cryptographically validating the request's bearer token server-side. A caller
+        // with no valid admin token (the public anonymous chat page, for instance) cannot
+        // reach this branch no matter what mobile number or headers it sends. Checked
+        // before the "no agents enabled" refusal below: an admin exercising this from the
+        // Conversations test panel may type a mobile that has no employee-side access at
+        // all, and that must not block the one capability that doesn't depend on it.
+        var isVerifiedAdmin = string.Equals(
+            _serviceContext.CurrentUser?.IsAdmin,
+            "Y",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (isVerifiedAdmin && !enabledAgents.Contains(AgentNames.LeaveApproval, StringComparer.OrdinalIgnoreCase))
+        {
+            enabledAgents = [.. enabledAgents, AgentNames.LeaveApproval];
+        }
 
         if (enabledAgents.Count == 0)
         {

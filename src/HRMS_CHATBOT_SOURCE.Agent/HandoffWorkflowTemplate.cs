@@ -62,6 +62,12 @@ public sealed class HandoffWorkflowTemplate
                     Name = AgentNames.Knowledge,
                     SkillPath = AgentSkillPaths.GetSkillPath(AgentNames.Knowledge),
                     Role = "Specialist"
+                },
+                new AgentBlueprint
+                {
+                    Name = AgentNames.LeaveApproval,
+                    SkillPath = AgentSkillPaths.GetSkillPath(AgentNames.LeaveApproval),
+                    Role = "Specialist"
                 }
             ],
             Handoffs = AgentHandoffTopology.OutboundHandoffs
