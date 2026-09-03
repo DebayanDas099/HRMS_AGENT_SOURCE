@@ -14,6 +14,13 @@ public interface ILeaveRepo
         string? mobile,
         DateTime startDate,
         DateTime endDate,
+        string? leaveType,
         string? reason,
+        CancellationToken cancellationToken = default);
+
+    Task<MSSQLResponse?> GetHolidayListAsync(
+        DateTime startDate,
+        DateTime endDate,
+        int? maxResults,
         CancellationToken cancellationToken = default);
 }

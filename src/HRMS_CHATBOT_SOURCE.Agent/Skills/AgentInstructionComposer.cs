@@ -23,6 +23,8 @@ public static class AgentInstructionComposer
                         + Environment.NewLine
                         + "- For applying leave, use one overall from/to (earliest start through latest end). Do not split an apply-leave request across ranges."
                         + Environment.NewLine
+                        + "- Before submitting leave, confirm leave type (casual, sick, earned, loss of pay) with the user."
+                        + Environment.NewLine
                         + "- Never invent calendar dates."
                         + Environment.NewLine
                         + "- If no date is mentioned, omit date parameters or use the current month."
