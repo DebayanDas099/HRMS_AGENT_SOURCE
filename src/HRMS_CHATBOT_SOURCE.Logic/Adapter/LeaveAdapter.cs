@@ -115,6 +115,11 @@ internal static class LeaveAdapter
         return value == null || value == DBNull.Value ? 0m : Convert.ToDecimal(value);
     }
 
+    private static decimal ReadOptionalDecimal(DataRow row, string columnName)
+    {
+        return row.Table.Columns.Contains(columnName) ? ToDecimal(row[columnName]) : 0m;
+    }
+
     private static string? ReadOptionalString(DataRow row, string columnName)
     {
         return row.Table.Columns.Contains(columnName)

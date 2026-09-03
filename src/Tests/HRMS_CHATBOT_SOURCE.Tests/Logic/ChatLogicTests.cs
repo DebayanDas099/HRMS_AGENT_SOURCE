@@ -6,6 +6,7 @@ using HRMS_CHATBOT_SOURCE.Domain.Models;
 using HRMS_CHATBOT_SOURCE.Infrastructure.Core;
 using HRMS_CHATBOT_SOURCE.Logic;
 using HRMS_CHATBOT_SOURCE.Repo.Admin;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HRMS_CHATBOT_SOURCE.Tests.Logic;
@@ -88,11 +89,12 @@ public class ChatLogicTests
     }
 
     [Fact]
-    public async Task SendMessageAsync_VerifiedAdmin_AddsLeaveApprovalAgentToTheEnabledList()
+    public async Task SendMessageAsync_VerifiedAdminWithExplicitHeader_AddsLeaveApprovalAgentToTheEnabledList()
     {
         var (chatLogic, _, runtime) = Build(
             enabledAgents: ["SupervisorAgent", "KnowledgeAgent"],
-            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" });
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" },
+            hasExplicitAdminHeader: true);
 
         var response = await chatLogic.SendMessageAsync(Request("9999999999", "hello"));
 
@@ -101,11 +103,31 @@ public class ChatLogicTests
     }
 
     [Fact]
+    public async Task SendMessageAsync_AdminClaimFromCookieOnly_NeverGetsLeaveApprovalAgent()
+    {
+        // Regression test: an admin who is separately logged into /Admin in the same
+        // browser carries an hrms_admin_token cookie on every same-origin request,
+        // including a fetch() from the public, unauthenticated /chat page - which
+        // never explicitly asked for or attached any admin credential. IsAdmin=Y
+        // alone must not be enough; without an explicit header this must stay a
+        // plain employee turn.
+        var (chatLogic, _, runtime) = Build(
+            enabledAgents: ["SupervisorAgent", "KnowledgeAgent"],
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" },
+            hasExplicitAdminHeader: false);
+
+        var response = await chatLogic.SendMessageAsync(Request("9999999999", "hello"));
+
+        Assert.DoesNotContain("LeaveApprovalAgent", response.EnabledAgents, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task SendMessageAsync_NonAdmin_NeverGetsLeaveApprovalAgent()
     {
         var (chatLogic, _, runtime) = Build(
             enabledAgents: ["SupervisorAgent", "KnowledgeAgent"],
-            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "N" });
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "N" },
+            hasExplicitAdminHeader: true);
 
         var response = await chatLogic.SendMessageAsync(Request("9999999999", "hello"));
 
@@ -130,7 +152,8 @@ public class ChatLogicTests
         // access at all - the admin capability must not depend on that.
         var (chatLogic, _, runtime) = Build(
             enabledAgents: [],
-            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" });
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" },
+            hasExplicitAdminHeader: true);
 
         var response = await chatLogic.SendMessageAsync(Request("0000000000", "list pending approvals"));
 
@@ -175,11 +198,19 @@ public class ChatLogicTests
 
     private static (ChatLogic ChatLogic, SpyAgentAccessService Access, SpyChatRuntime Runtime) Build(
         IReadOnlyList<string> enabledAgents,
-        CurrentUserContext? currentUser = null)
+        CurrentUserContext? currentUser = null,
+        bool hasExplicitAdminHeader = false)
     {
         var access = new SpyAgentAccessService(enabledAgents);
         var runtime = new SpyChatRuntime();
-        var serviceContext = new FakeServiceContext { CurrentUser = currentUser };
+
+        var httpContext = new DefaultHttpContext();
+        if (hasExplicitAdminHeader)
+        {
+            httpContext.Request.Headers.Authorization = "Bearer test-token";
+        }
+
+        var serviceContext = new FakeServiceContext { CurrentUser = currentUser, RequestContext = httpContext };
         var chatLogic = new ChatLogic(access, runtime, new StubUserProfileRepo(), serviceContext, NullLogger<ChatLogic>.Instance);
         return (chatLogic, access, runtime);
     }
