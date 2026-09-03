@@ -151,7 +151,8 @@ public sealed class HrmsHandoffWorkflowFactory
                 AIFunctionFactory.Create(_documentAgentTools.ResolveDocumentsForDeliveryAsync),
                 AIFunctionFactory.Create(_documentAgentTools.SearchDocumentsBySimilarityAsync),
                 AIFunctionFactory.Create(_documentAgentTools.BuildDocumentDownloadLink),
-                AIFunctionFactory.Create(_documentAgentTools.SendDocumentLinkByMailAsync)
+                AIFunctionFactory.Create(_documentAgentTools.SendDocumentLinkByMailAsync),
+                AIFunctionFactory.Create(_documentAgentTools.FormatDocumentAgentReply)
             ];
         }
 

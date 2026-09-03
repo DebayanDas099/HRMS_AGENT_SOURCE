@@ -6,6 +6,8 @@ public interface ICommonLogic
 {
     DateTime GetReferenceDateTime(DateTime? utcNow = null);
 
+    string FormatAgentReply(string? rawReply);
+
     RelativeDateParseResult ParseRelativeDate(string? phrase, DateTime? referenceDate = null);
 
     RelativeDateParseResult ParseRelativeDateFromUserMessage(string? message, DateTime? referenceDate = null);

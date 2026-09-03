@@ -92,4 +92,40 @@ public class CommonLogicTests
 
         Assert.Equal(new DateTime(2026, 9, 1, 5, 30, 0), ist);
     }
+
+    [Fact]
+    public void FormatAgentReply_MultiDocumentDisambiguation_BuildsStructuredOutput()
+    {
+        var logic = new CommonLogic();
+        var rawReply =
+            "Your request for the \"ai project doc\" matches multiple documents: "
+            + "1. Title: AI Project Data - Document ID: 14 - Category: Policy - Active: Yes - Ingestion Status: Completed - Similarity Score: 100 "
+            + "2. Title: AI Project Data - Document ID: 1 - Category: Policy - Active: Yes - Ingestion Status: Completed - Similarity Score: 100 "
+            + "Could you please confirm the document ID (1 or 14) you wish to download?";
+
+        var formatted = logic.FormatAgentReply(rawReply);
+
+        Assert.Contains("🔎 **Multiple Documents Found**", formatted);
+        Assert.Contains("**Option 1**", formatted);
+        Assert.Contains("**Document ID:** 14", formatted);
+        Assert.Contains("**Option 2**", formatted);
+        Assert.Contains("**Document ID:** 1", formatted);
+        Assert.Contains("**[ Document 14 ]**", formatted);
+        Assert.Contains("**[ Document 1 ]**", formatted);
+    }
+
+    [Fact]
+    public void FormatAgentReply_NormalReply_AddsReadableSpacingAndLists()
+    {
+        var logic = new CommonLogic();
+        var rawReply =
+            "Here are document details: Document ID: 10 - Category: Policy - Active: Yes - Ingestion Status: Completed Please confirm if you want me to email this link.";
+
+        var formatted = logic.FormatAgentReply(rawReply);
+
+        Assert.Contains("Here are document details:", formatted);
+        Assert.Contains("- Document ID: 10", formatted);
+        Assert.Contains("Please confirm", formatted);
+        Assert.Contains("\n\nPlease confirm", formatted);
+    }
 }
