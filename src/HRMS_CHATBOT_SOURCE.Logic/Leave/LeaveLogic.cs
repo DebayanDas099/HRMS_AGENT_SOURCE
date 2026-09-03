@@ -14,10 +14,11 @@ public class LeaveLogic : ILeaveLogic
         _leaveRepo = leaveRepo;
     }
 
-    public async Task<LeaveBalanceSummaryDto> GetLeaveBalanceSummaryAsync(
+    public async Task<IReadOnlyList<LeaveBalanceCategoryDto>> GetLeaveBalanceSummaryAsync(
         string? mobile,
         DateTime? startDate,
         DateTime? endDate,
+        string? leaveCategory,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(mobile))
@@ -34,8 +35,14 @@ public class LeaveLogic : ILeaveLogic
             throw new ValidationException("Start date cannot be after end date.");
         }
 
-        var response = await _leaveRepo.GetLeaveDetailsByUserAsync(mobile.Trim(), start, end, cancellationToken);
-        return LeaveAdapter.MapBalanceSummary(response);
+        var response = await _leaveRepo.GetLeaveDetailsByUserAsync(
+            mobile.Trim(),
+            start,
+            end,
+            string.IsNullOrWhiteSpace(leaveCategory) ? null : leaveCategory.Trim(),
+            cancellationToken);
+
+        return LeaveAdapter.MapBalanceCategories(response);
     }
 
     public async Task<string> ValidateAndApplyLeaveAsync(
