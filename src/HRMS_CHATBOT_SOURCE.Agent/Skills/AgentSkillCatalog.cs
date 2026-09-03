@@ -16,7 +16,9 @@ public static class AgentSkillCatalog
             [AgentNames.Document] =
                 "document repository, uploads, ingestion status, and repository metadata",
             [AgentNames.Knowledge] =
-                "HR policy, training, and knowledge-base questions"
+                "HR policy, training, and knowledge-base questions",
+            [AgentNames.LeaveApproval] =
+                "reviewing and approving or rejecting pending employee leave applications (administrator only)"
         };
 
     public static IReadOnlyList<string> SpecialistAgentNames =>

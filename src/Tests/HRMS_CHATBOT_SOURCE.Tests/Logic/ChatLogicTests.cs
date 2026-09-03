@@ -87,6 +87,60 @@ public class ChatLogicTests
         Assert.Equal("1234567890", runtime.AuthenticatedMobile);
     }
 
+    [Fact]
+    public async Task SendMessageAsync_VerifiedAdmin_AddsLeaveApprovalAgentToTheEnabledList()
+    {
+        var (chatLogic, _, runtime) = Build(
+            enabledAgents: ["SupervisorAgent", "KnowledgeAgent"],
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" });
+
+        var response = await chatLogic.SendMessageAsync(Request("9999999999", "hello"));
+
+        Assert.Contains("LeaveApprovalAgent", response.EnabledAgents, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("KnowledgeAgent", response.EnabledAgents, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_NonAdmin_NeverGetsLeaveApprovalAgent()
+    {
+        var (chatLogic, _, runtime) = Build(
+            enabledAgents: ["SupervisorAgent", "KnowledgeAgent"],
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "N" });
+
+        var response = await chatLogic.SendMessageAsync(Request("9999999999", "hello"));
+
+        Assert.DoesNotContain("LeaveApprovalAgent", response.EnabledAgents, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_AnonymousCaller_NeverGetsLeaveApprovalAgent()
+    {
+        // No CurrentUser at all - the public, unauthenticated chat page shape.
+        var (chatLogic, _, runtime) = Build(enabledAgents: ["SupervisorAgent", "KnowledgeAgent"]);
+
+        var response = await chatLogic.SendMessageAsync(Request("9999999999", "hello"));
+
+        Assert.DoesNotContain("LeaveApprovalAgent", response.EnabledAgents, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SendMessageAsync_VerifiedAdmin_WithNoEmployeeAccess_StillRunsForLeaveApprovalOnly()
+    {
+        // The mobile typed into the admin test-chat box has no employee-side group
+        // access at all - the admin capability must not depend on that.
+        var (chatLogic, _, runtime) = Build(
+            enabledAgents: [],
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" });
+
+        var response = await chatLogic.SendMessageAsync(Request("0000000000", "list pending approvals"));
+
+        Assert.True(runtime.WasCalled);
+        Assert.Equal(["LeaveApprovalAgent"], response.EnabledAgents);
+        Assert.NotEqual(
+            "Your mobile number is not registered for this service. Please contact HR/IT support.",
+            response.Reply);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

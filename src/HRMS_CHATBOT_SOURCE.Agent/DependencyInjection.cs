@@ -148,6 +148,7 @@ public static class DependencyInjection
             sp.GetRequiredService<ILoggerFactory>().CreateLogger("FoundryChatClient")));
         services.AddSingleton<PolicyKnowledgeTools>();
         services.AddSingleton<LeaveApplicationTools>();
+        services.AddSingleton<LeaveApprovalTools>();
         services.AddSingleton<DocumentAgentTools>();
         services.AddSingleton<RelativeDateParsingTools>();
         services.AddSingleton<HrmsHandoffWorkflowFactory>();
