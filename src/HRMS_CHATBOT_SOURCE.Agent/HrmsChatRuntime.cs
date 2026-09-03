@@ -1,4 +1,5 @@
-using System.Collections.Concurrent;
+using HRMS_CHATBOT_SOURCE.Agent.History;
+using HRMS_CHATBOT_SOURCE.Agent.Notifications;
 using HRMS_CHATBOT_SOURCE.Agent.Skills;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
@@ -18,29 +19,23 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
 
     private readonly HrmsHandoffWorkflowFactory _workflowFactory;
     private readonly CheckpointManager _checkpointManager;
+    private readonly IConversationHistoryStore _historyStore;
+    private readonly ILeaveStatusNotificationStore _leaveStatusNotificationStore;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<HrmsChatRuntime> _logger;
-
-    /// <summary>
-    /// The transcript replayed as this turn's input. This is distinct from the MAF
-    /// checkpoint recorded per run below, and stays in-process for now: MAF's own
-    /// resumption path (ResumeStreamingAsync) is documented as resuming a run
-    /// suspended on a RequestPort's RequestInfoEvent, and this workflow has no
-    /// RequestPort - every turn runs the handoff graph to completion. Without a
-    /// suspend point there is nothing for a checkpoint to resume, so it cannot yet
-    /// replace this cache; it becomes load-bearing the moment a RequestPort (e.g.
-    /// the leave confirmation gate) is added.
-    /// </summary>
-    private readonly ConcurrentDictionary<string, List<ChatMessage>> _conversationHistory = new(StringComparer.OrdinalIgnoreCase);
 
     public HrmsChatRuntime(
         HrmsHandoffWorkflowFactory workflowFactory,
         CheckpointManager checkpointManager,
+        IConversationHistoryStore historyStore,
+        ILeaveStatusNotificationStore leaveStatusNotificationStore,
         IServiceScopeFactory scopeFactory,
         ILogger<HrmsChatRuntime> logger)
     {
         _workflowFactory = workflowFactory;
         _checkpointManager = checkpointManager;
+        _historyStore = historyStore;
+        _leaveStatusNotificationStore = leaveStatusNotificationStore;
         _scopeFactory = scopeFactory;
         _logger = logger;
     }
@@ -61,13 +56,16 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
             ? Guid.NewGuid().ToString("N")
             : conversationId.Trim();
 
-        var history = _conversationHistory.GetOrAdd(id, _ => []);
-        List<ChatMessage> snapshot;
-        lock (history)
+        // Read-append-write against the external store rather than an in-process cache -
+        // this is what makes the API stateless: any instance can serve any turn of a
+        // conversation, and a restart mid-conversation does not lose history. There is no
+        // cross-instance locking here, same as the checkpoint store above; a genuine
+        // double-submit race on the same conversation is not guarded against.
+        var existingHistory = await _historyStore.GetHistoryAsync(id, cancellationToken).ConfigureAwait(false);
+        var history = new List<ChatMessage>(existingHistory)
         {
-            history.Add(new ChatMessage(ChatRole.User, message.Trim()));
-            snapshot = [.. history];
-        }
+            new ChatMessage(ChatRole.User, message.Trim())
+        };
 
         var enabled = enabledAgentNames
             .Where(name => !string.IsNullOrWhiteSpace(name))
@@ -77,21 +75,69 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
         var workflow = _workflowFactory.Build(enabled);
         using var scope = _scopeFactory.CreateScope();
         var commonLogic = scope.ServiceProvider.GetRequiredService<ICommonLogic>();
-        var turnMessages = ApplyCurrentAccessOverride(snapshot, enabled, commonLogic, authenticatedMobile);
+        var turnMessages = ApplyCurrentAccessOverride(history, enabled, commonLogic, authenticatedMobile);
         var reply = await RunTurnAsync(workflow, turnMessages, id, cancellationToken).ConfigureAwait(false);
 
-        lock (history)
-        {
-            history.Add(new ChatMessage(ChatRole.Assistant, reply.Text));
-        }
+        var replyText = await PrependPendingLeaveNoticesAsync(reply.Text, authenticatedMobile, cancellationToken).ConfigureAwait(false);
+
+        history.Add(new ChatMessage(ChatRole.Assistant, replyText));
+        await _historyStore.SaveHistoryAsync(id, history, cancellationToken).ConfigureAwait(false);
 
         return new ChatTurnResponse
         {
             ConversationId = id,
-            Reply = reply.Text,
+            Reply = replyText,
             EnabledAgents = enabled,
             LastSpeaker = reply.LastSpeaker
         };
+    }
+
+    /// <summary>
+    /// Delivers any leave-status updates the employee hasn't seen yet, as the first
+    /// thing shown in this turn's reply - checked on every turn (one cheap point
+    /// query) rather than trying to detect "conversation just opened". Idempotent
+    /// via the delivered flag, so this fires exactly once per pending notification
+    /// no matter how many turns pass before the employee happens to chat again.
+    /// Deliberately plain, deterministic text - not LLM-generated - since this is the
+    /// system relaying the employee's own data, not something that needs a model call
+    /// or guardrail screening.
+    /// </summary>
+    private async Task<string> PrependPendingLeaveNoticesAsync(
+        string replyText,
+        string? authenticatedMobile,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(authenticatedMobile))
+        {
+            return replyText;
+        }
+
+        try
+        {
+            var pending = await _leaveStatusNotificationStore
+                .GetPendingAsync(authenticatedMobile, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (pending.Count == 0)
+            {
+                return replyText;
+            }
+
+            var notices = pending.Select(n => $"Your leave request ({n.ApplicationReference}) was {n.NewStatus}."
+                + (string.IsNullOrWhiteSpace(n.Note) ? string.Empty : $" Note: {n.Note}"));
+
+            await _leaveStatusNotificationStore
+                .MarkDeliveredAsync(authenticatedMobile, pending.Select(n => n.Id).ToList(), cancellationToken)
+                .ConfigureAwait(false);
+
+            return string.Join(Environment.NewLine, notices) + Environment.NewLine + Environment.NewLine + replyText;
+        }
+        catch (Exception ex)
+        {
+            // A pending-notification lookup failure must not fail the turn.
+            _logger.LogError(ex, "Could not check pending leave notifications for {Mobile}.", authenticatedMobile);
+            return replyText;
+        }
     }
 
     /// <summary>

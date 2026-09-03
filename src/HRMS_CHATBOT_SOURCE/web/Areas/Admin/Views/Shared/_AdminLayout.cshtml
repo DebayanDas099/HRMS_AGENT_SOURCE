@@ -67,6 +67,11 @@
                     <iconify-icon icon="ph:sliders-horizontal-duotone"></iconify-icon>
                     <span>Agent Control</span>
                 </a>
+                <a asp-area="Admin" asp-controller="Approvals" asp-action="Index"
+                   class="nav-item @(activeController == "Approvals" ? "active" : null)">
+                    <iconify-icon icon="ph:calendar-check-duotone"></iconify-icon>
+                    <span>Approvals</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -95,10 +100,11 @@
                         <span class="theme-toggle-thumb"></span>
                     </span>
                 </label>
-                <button class="topbar-btn" type="button" aria-label="Notifications">
+                <a asp-area="Admin" asp-controller="Approvals" asp-action="Index"
+                   class="topbar-btn" id="notifBell" aria-label="Notifications">
                     <iconify-icon icon="ph:bell-duotone"></iconify-icon>
-                    <span class="notif-dot"></span>
-                </button>
+                    <span class="notif-dot" id="notifDot" hidden></span>
+                </a>
                 <div class="user-chip" id="topbarUserChip">
                     <div class="user-avatar" id="topbarUserAvatar">@initials</div>
                     <div class="user-info">

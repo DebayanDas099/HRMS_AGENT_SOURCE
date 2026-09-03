@@ -1,0 +1,61 @@
+@{
+    ViewData["Title"] = "Leave Approvals";
+    Layout = "_AdminLayout";
+}
+
+<div class="apr-page">
+    <div class="apr-header">
+        <h1 class="apr-title">Leave Approvals</h1>
+        <p class="apr-subtitle">Review and take action on pending employee leave applications.</p>
+    </div>
+
+    <div class="apr-toolbar">
+        <div class="apr-toolbar-left">
+            <h3 class="apr-toolbar-title">Pending Applications</h3>
+            <span class="apr-count-pill" id="approvalsCountBadge">0 pending</span>
+        </div>
+        <div class="apr-toolbar-right">
+            <div class="apr-search">
+                <iconify-icon icon="ph:magnifying-glass"></iconify-icon>
+                <input type="search" id="approvalsSearch" placeholder="Search employee..." aria-label="Search employee" />
+            </div>
+            <button class="btn-icon" type="button" id="refreshApprovalsBtn" title="Refresh">
+                <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
+            </button>
+            <span class="apr-selected-label" id="approvalsSelectedLabel" hidden>0 selected</span>
+            <button class="apr-submit-btn" type="button" id="submitDecisionsBtn" disabled>Submit Decisions</button>
+        </div>
+    </div>
+
+    <div class="apr-grid-wrap" id="approvalsPanel">
+        <table class="apr-grid" id="approvalsTable">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Reason</th>
+                    <th>Applied On</th>
+                    <th>Status</th>
+                    <th class="apr-remarks-col">Remarks</th>
+                    <th class="apr-action-col">Action</th>
+                </tr>
+            </thead>
+            <tbody id="approvalsTableBody">
+                <tr class="apr-empty-row">
+                    <td colspan="8">
+                        <div class="apr-empty-state">
+                            <iconify-icon icon="ph:calendar-check-duotone"></iconify-icon>
+                            <p>Nothing awaiting approval right now.</p>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="~/css/approvals.css" asp-append-version="true" />
+    <script src="~/js/approvals.js" asp-append-version="true"></script>
+}
