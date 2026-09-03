@@ -540,6 +540,28 @@ html, body {
 
 .wa-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.wa-mic-btn svg { width: 22px; height: 22px; fill: currentColor; }
+
+.wa-mic-btn.wa-mic-recording {
+    color: #e53935;
+    animation: wa-mic-pulse 1s ease-in-out infinite;
+}
+
+.wa-mic-btn.wa-mic-transcribing {
+    opacity: 0.5;
+}
+
+.wa-mic-btn.wa-mic-disabled,
+.wa-mic-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+@keyframes wa-mic-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 1000px) {

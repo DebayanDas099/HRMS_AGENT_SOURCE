@@ -160,3 +160,35 @@
     transform: none;
     box-shadow: none;
 }
+
+.test-chat-mic-btn {
+    align-self: flex-end;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.test-chat-mic-btn iconify-icon {
+    font-size: 1.35rem;
+}
+
+.test-chat-mic-btn.test-chat-mic-recording {
+    color: #e53935;
+    animation: test-chat-mic-pulse 1s ease-in-out infinite;
+}
+
+.test-chat-mic-btn.test-chat-mic-transcribing {
+    opacity: 0.5;
+}
+
+.test-chat-mic-btn.test-chat-mic-disabled,
+.test-chat-mic-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+@keyframes test-chat-mic-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+}

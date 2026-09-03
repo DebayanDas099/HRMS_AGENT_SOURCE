@@ -141,9 +141,17 @@ internal static class AgentAdapter
 
     private static string ResolveRole(string agentName)
     {
-        return string.Equals(agentName, AgentNames.Supervisor, StringComparison.OrdinalIgnoreCase)
-            ? "Coordinator"
-            : "Specialist";
+        if (string.Equals(agentName, AgentNames.Supervisor, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Coordinator";
+        }
+
+        if (string.Equals(agentName, AgentNames.VoiceInput, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Feature";
+        }
+
+        return "Specialist";
     }
 
     private static UserGroupDto MapUserGroupRow(DataRow row)
