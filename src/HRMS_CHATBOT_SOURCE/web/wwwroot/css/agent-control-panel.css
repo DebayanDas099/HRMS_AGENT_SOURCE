@@ -143,6 +143,11 @@
     color: #0052cc;
 }
 
+.acp-role-pill.feature {
+    background: rgba(255, 117, 0, 0.12);
+    color: #c45a00;
+}
+
 .acp-flag-pill.is-on {
     background: rgba(5, 205, 153, 0.12);
     color: #01b574;

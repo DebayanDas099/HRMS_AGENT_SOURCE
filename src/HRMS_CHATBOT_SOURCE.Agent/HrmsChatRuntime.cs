@@ -47,6 +47,41 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
         string? authenticatedMobile = null,
         CancellationToken cancellationToken = default)
     {
+        ChatTurnResponse? result = null;
+
+        await foreach (var chunk in RunStreamAsync(
+            enabledAgentNames,
+            conversationId,
+            message,
+            authenticatedMobile,
+            cancellationToken).ConfigureAwait(false))
+        {
+            if (string.Equals(chunk.Type, "done", StringComparison.OrdinalIgnoreCase))
+            {
+                result = new ChatTurnResponse
+                {
+                    ConversationId = chunk.ConversationId ?? string.Empty,
+                    Reply = chunk.Reply ?? string.Empty,
+                    EnabledAgents = chunk.EnabledAgents ?? [],
+                    LastSpeaker = chunk.LastSpeaker
+                };
+            }
+            else if (string.Equals(chunk.Type, "error", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(chunk.Message ?? "Chat stream failed.");
+            }
+        }
+
+        return result ?? throw new InvalidOperationException("Chat stream ended without a done chunk.");
+    }
+
+    public async IAsyncEnumerable<ChatStreamChunk> RunStreamAsync(
+        IReadOnlyCollection<string> enabledAgentNames,
+        string? conversationId,
+        string message,
+        string? authenticatedMobile = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
         if (string.IsNullOrWhiteSpace(message))
         {
             throw new System.ComponentModel.DataAnnotations.ValidationException("Message is required.");
@@ -56,11 +91,6 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
             ? Guid.NewGuid().ToString("N")
             : conversationId.Trim();
 
-        // Read-append-write against the external store rather than an in-process cache -
-        // this is what makes the API stateless: any instance can serve any turn of a
-        // conversation, and a restart mid-conversation does not lose history. There is no
-        // cross-instance locking here, same as the checkpoint store above; a genuine
-        // double-submit race on the same conversation is not guarded against.
         var existingHistory = await _historyStore.GetHistoryAsync(id, cancellationToken).ConfigureAwait(false);
         var history = new List<ChatMessage>(existingHistory)
         {
@@ -76,40 +106,61 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
         using var scope = _scopeFactory.CreateScope();
         var commonLogic = scope.ServiceProvider.GetRequiredService<ICommonLogic>();
         var turnMessages = ApplyCurrentAccessOverride(history, enabled, commonLogic, authenticatedMobile);
-        var reply = await RunTurnAsync(workflow, turnMessages, id, cancellationToken).ConfigureAwait(false);
 
-        var replyText = await PrependPendingLeaveNoticesAsync(reply.Text, authenticatedMobile, cancellationToken).ConfigureAwait(false);
+        var noticePrefix = await GetPendingLeaveNoticePrefixAsync(authenticatedMobile, cancellationToken)
+            .ConfigureAwait(false);
+        if (!string.IsNullOrEmpty(noticePrefix))
+        {
+            yield return ChatStreamChunk.Delta(noticePrefix);
+        }
 
-        history.Add(new ChatMessage(ChatRole.Assistant, replyText));
+        var agentReplyBuilder = new System.Text.StringBuilder();
+        string? lastSpeaker = null;
+
+        await foreach (var delta in StreamTurnAsync(workflow, turnMessages, id, cancellationToken).ConfigureAwait(false))
+        {
+            if (delta.IsGuardrailBlock)
+            {
+                agentReplyBuilder.Clear();
+                agentReplyBuilder.Append(GuardrailBlockedReply);
+                lastSpeaker = null;
+                yield return ChatStreamChunk.Delta(GuardrailBlockedReply);
+                break;
+            }
+
+            if (!string.IsNullOrEmpty(delta.Text))
+            {
+                agentReplyBuilder.Append(delta.Text);
+                lastSpeaker = delta.LastSpeaker ?? lastSpeaker;
+                yield return ChatStreamChunk.Delta(delta.Text);
+            }
+        }
+
+        var agentReply = agentReplyBuilder.ToString().Trim();
+        if (string.IsNullOrWhiteSpace(agentReply))
+        {
+            _logger.LogWarning("Handoff workflow produced an empty reply.");
+            agentReply = "I could not produce a response. Please try again.";
+            yield return ChatStreamChunk.Delta(agentReply);
+        }
+
+        var fullReply = string.IsNullOrEmpty(noticePrefix)
+            ? agentReply
+            : noticePrefix + agentReply;
+
+        history.Add(new ChatMessage(ChatRole.Assistant, fullReply));
         await _historyStore.SaveHistoryAsync(id, history, cancellationToken).ConfigureAwait(false);
 
-        return new ChatTurnResponse
-        {
-            ConversationId = id,
-            Reply = replyText,
-            EnabledAgents = enabled,
-            LastSpeaker = reply.LastSpeaker
-        };
+        yield return ChatStreamChunk.Done(id, fullReply, enabled, lastSpeaker);
     }
 
-    /// <summary>
-    /// Delivers any leave-status updates the employee hasn't seen yet, as the first
-    /// thing shown in this turn's reply - checked on every turn (one cheap point
-    /// query) rather than trying to detect "conversation just opened". Idempotent
-    /// via the delivered flag, so this fires exactly once per pending notification
-    /// no matter how many turns pass before the employee happens to chat again.
-    /// Deliberately plain, deterministic text - not LLM-generated - since this is the
-    /// system relaying the employee's own data, not something that needs a model call
-    /// or guardrail screening.
-    /// </summary>
-    private async Task<string> PrependPendingLeaveNoticesAsync(
-        string replyText,
+    private async Task<string?> GetPendingLeaveNoticePrefixAsync(
         string? authenticatedMobile,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(authenticatedMobile))
         {
-            return replyText;
+            return null;
         }
 
         try
@@ -120,7 +171,7 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
 
             if (pending.Count == 0)
             {
-                return replyText;
+                return null;
             }
 
             var notices = pending.Select(n => $"Your leave request ({n.ApplicationReference}) was {n.NewStatus}."
@@ -130,87 +181,79 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
                 .MarkDeliveredAsync(authenticatedMobile, pending.Select(n => n.Id).ToList(), cancellationToken)
                 .ConfigureAwait(false);
 
-            return string.Join(Environment.NewLine, notices) + Environment.NewLine + Environment.NewLine + replyText;
+            return string.Join(Environment.NewLine, notices) + Environment.NewLine + Environment.NewLine;
         }
         catch (Exception ex)
         {
-            // A pending-notification lookup failure must not fail the turn.
             _logger.LogError(ex, "Could not check pending leave notifications for {Mobile}.", authenticatedMobile);
-            return replyText;
+            return null;
         }
     }
 
-    /// <summary>
-    /// Wraps turn execution so a guardrail block degrades into a safe reply instead of
-    /// an unhandled exception. The shared IChatClient is wrapped with UseMccGuardrails,
-    /// so every model call this turn makes - the routing turn, each specialist turn,
-    /// and the tool-result round-trip after PolicyKnowledgeTools returns - is screened
-    /// on both the way in and the way out; a violation throws from inside whichever
-    /// call tripped it, which can be anywhere in ExecuteTurnAsync.
-    /// </summary>
-    private async Task<(string Text, string? LastSpeaker)> RunTurnAsync(
+    private async IAsyncEnumerable<(string? Text, string? LastSpeaker, bool IsGuardrailBlock)> StreamTurnAsync(
         Workflow workflow,
         IReadOnlyList<ChatMessage> messages,
         string sessionId,
-        CancellationToken cancellationToken)
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        try
+        await foreach (var evt in ExecuteTurnEventStreamAsync(workflow, messages, sessionId, cancellationToken)
+            .ConfigureAwait(false))
         {
-            return await ExecuteTurnAsync(workflow, messages, sessionId, cancellationToken).ConfigureAwait(false);
-        }
-        catch (GuardrailViolationException ex)
-        {
-            _logger.LogWarning(
-                "Guardrail blocked a chat turn: provider={Provider} severity={Severity} reason={Reason}",
-                ex.Provider,
-                ex.Severity,
-                ex.Reason);
-
-            return (GuardrailBlockedReply, null);
+            switch (evt)
+            {
+                case GuardrailBlockedMarker:
+                    yield return (null, null, true);
+                    yield break;
+                case TurnDelta delta:
+                    yield return (delta.Text, delta.LastSpeaker, false);
+                    break;
+            }
         }
     }
 
-    private async Task<(string Text, string? LastSpeaker)> ExecuteTurnAsync(
+    private async IAsyncEnumerable<object> ExecuteTurnEventStreamAsync(
         Workflow workflow,
         IReadOnlyList<ChatMessage> messages,
         string sessionId,
-        CancellationToken cancellationToken)
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        // Passing the checkpoint manager and a stable session id (the conversation id)
-        // makes this a genuine MAF-tracked run rather than a session-less one-off call:
-        // MAF externalises a real, queryable checkpoint per run under this session,
-        // which is the audit trail SP10 calls for and the exact seam ResumeStreamingAsync
-        // will need once a RequestPort exists.
         await using var run = await InProcessExecution
             .RunStreamingAsync(workflow, messages, _checkpointManager, sessionId, cancellationToken)
             .ConfigureAwait(false);
         await run.TrySendMessageAsync(new TurnToken(emitEvents: true)).ConfigureAwait(false);
 
         var text = new System.Text.StringBuilder();
-        string? lastSpeaker = null;
 
         await foreach (var evt in run.WatchStreamAsync().WithCancellation(cancellationToken).ConfigureAwait(false))
         {
             if (evt is ExecutorFailedEvent failed)
             {
                 if (GuardrailViolationException.TryUnwrap(failed.Data, out var blocked))
-                    throw blocked;
+                {
+                    yield return new GuardrailBlockedMarker();
+                    yield break;
+                }
 
                 throw failed.Data ?? new InvalidOperationException($"Executor '{failed.ExecutorId}' failed.");
             }
-            else if (evt is WorkflowErrorEvent workflowError)
+
+            if (evt is WorkflowErrorEvent workflowError)
             {
                 if (GuardrailViolationException.TryUnwrap(workflowError.Exception, out var blocked))
-                    throw blocked;
+                {
+                    yield return new GuardrailBlockedMarker();
+                    yield break;
+                }
 
                 throw workflowError.Exception ?? new InvalidOperationException("Workflow error.");
             }
-            else if (evt is AgentResponseUpdateEvent update)
+
+            if (evt is AgentResponseUpdateEvent update)
             {
-                lastSpeaker = update.ExecutorId;
                 if (!string.IsNullOrEmpty(update.Update.Text))
                 {
                     text.Append(update.Update.Text);
+                    yield return new TurnDelta(update.Update.Text, update.ExecutorId);
                 }
             }
             else if (evt is WorkflowOutputEvent output)
@@ -218,9 +261,10 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
                 if (output.As<List<ChatMessage>>() is { Count: > 0 } outputMessages)
                 {
                     var lastAssistant = outputMessages.LastOrDefault(message => message.Role == ChatRole.Assistant);
-                    if (lastAssistant != null && text.Length == 0)
+                    if (lastAssistant != null && text.Length == 0 && !string.IsNullOrEmpty(lastAssistant.Text))
                     {
                         text.Append(lastAssistant.Text);
+                        yield return new TurnDelta(lastAssistant.Text, null);
                     }
                 }
 
@@ -229,16 +273,11 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
         }
 
         await LogCheckpointAsync(sessionId, cancellationToken).ConfigureAwait(false);
-
-        var reply = text.ToString().Trim();
-        if (string.IsNullOrWhiteSpace(reply))
-        {
-            _logger.LogWarning("Handoff workflow produced an empty reply.");
-            reply = "I could not produce a response. Please try again.";
-        }
-
-        return (reply, lastSpeaker);
     }
+
+    private sealed record TurnDelta(string? Text, string? LastSpeaker);
+
+    private sealed class GuardrailBlockedMarker;
 
     private async Task LogCheckpointAsync(string sessionId, CancellationToken cancellationToken)
     {
@@ -258,7 +297,6 @@ public sealed class HrmsChatRuntime : IHrmsChatRuntime
         }
         catch (Exception ex)
         {
-            // Observability only - a checkpoint lookup failure must not fail the turn.
             _logger.LogDebug(ex, "Could not read the latest checkpoint for conversation {SessionId}.", sessionId);
         }
     }

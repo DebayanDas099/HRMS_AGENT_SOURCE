@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
     {
         services.Configure<AzureKeyVaultSettings>(configuration.GetSection(AzureKeyVaultSettings.SectionName));
         services.Configure<AppSettings>(configuration.GetSection(AppSettings.SectionName));
+        services.Configure<AzureSpeechSettings>(configuration.GetSection(AzureSpeechSettings.SectionName));
 
         services.AddHttpContextAccessor();
         services.AddMemoryCache();        services.AddScoped<IServiceContext, ServiceContext>();
@@ -37,6 +38,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(applicationSecrets);
         services.AddSingleton<IAzureKeyVaultService, AzureKeyVaultService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<ISpeechTranslationService, AzureSpeechTranslationService>();
         services.AddSingleton<JwtTokenValidator>();
 
         return services;

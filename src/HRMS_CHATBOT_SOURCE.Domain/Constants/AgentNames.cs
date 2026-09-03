@@ -14,4 +14,10 @@ public static class AgentNames
     /// on the request. See ChatLogic.SendMessageAsync.
     /// </summary>
     public const string LeaveApproval = "LeaveApprovalAgent";
+
+    /// <summary>
+    /// Gates voice/mic input for chat. Configured via agent_master + agent_appl_user_grp
+    /// like other agents, but never included in the handoff workflow.
+    /// </summary>
+    public const string VoiceInput = "VoiceInputAgent";
 }
