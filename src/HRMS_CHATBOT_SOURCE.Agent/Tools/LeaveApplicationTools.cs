@@ -40,15 +40,16 @@ public sealed class LeaveApplicationTools
     }
 
     [Description(
-        "Gets the employee's leave balance summary (accrued, applied, remaining, loss of pay, "
-        + "contract status) for the given mobile number over one session date range. Defaults to "
-        + "the current month when dates are omitted. This tool covers a single range per call; if "
-        + "several date ranges were parsed, invoke it once per range. Ask the employee for their "
-        + "registered mobile number if you do not already have it.")]
+        "Gets the employee's leave balance from user_leave_balance for the given mobile number "
+        + "over one session date range. Omit category to return all metrics (credit, adjust, applied, "
+        + "approved, pending, balance). Pass category when the user asks for one metric only "
+        + "(e.g. pending, approved, applied, remaining/balance). Defaults to the current month when "
+        + "dates are omitted. Invoke once per parsed date range.")]
     public async Task<string> GetLeaveStatusAsync(
         [Description("The employee's registered mobile number.")] string mobile,
         [Description("Session start date (yyyy-MM-dd). Defaults to the first day of the current month.")] string? startDate = null,
         [Description("Session end date (yyyy-MM-dd). Defaults to the last day of the current month.")] string? endDate = null,
+        [Description("Balance metric: credit, adjust, applied, approved, pending, balance. Omit for all metrics.")] string? category = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -62,11 +63,11 @@ public sealed class LeaveApplicationTools
             var start = ParseOptionalDate(startDate);
             var end = ParseOptionalDate(endDate);
 
-            var summary = await leaveLogic
-                .GetLeaveBalanceSummaryAsync(mobile, start, end, cancellationToken)
+            var categories = await leaveLogic
+                .GetLeaveBalanceSummaryAsync(mobile, start, end, category, cancellationToken)
                 .ConfigureAwait(false);
 
-            return FormatSummary(summary);
+            return FormatBalanceCategories(categories, startDate, endDate, category);
         }
         catch (ValidationException ex)
         {
@@ -205,15 +206,52 @@ public sealed class LeaveApplicationTools
         return heading + Environment.NewLine + string.Join(Environment.NewLine, lines);
     }
 
-    private static string FormatSummary(LeaveBalanceSummaryDto summary)
+    private static string FormatBalanceCategories(
+        IReadOnlyList<LeaveBalanceCategoryDto> categories,
+        string? startDate,
+        string? endDate,
+        string? requestedCategory)
     {
-        return $"Leave balance summary for {summary.EmpId}: "
-            + $"accrued={summary.AccruedLeaveBalance}, "
-            + $"applied={summary.AppliedLeave}, "
-            + $"remaining={summary.RemainingLeaveBalance}, "
-            + $"loss_of_pay={summary.LossOfPay}, "
-            + $"contract_status={summary.ContractStatus ?? "N/A"}, "
-            + $"contract_end_date={summary.ContractEndDate?.ToString(DateFormat, CultureInfo.InvariantCulture) ?? "N/A"}.";
+        if (categories.Count == 0)
+        {
+            return "No leave balance data found for the requested period.";
+        }
+
+        var empId = categories[0].EmpId;
+        var rangeSuffix = string.Empty;
+        if (!string.IsNullOrWhiteSpace(startDate) && !string.IsNullOrWhiteSpace(endDate))
+        {
+            rangeSuffix = $" ({startDate.Trim()} to {endDate.Trim()})";
+        }
+
+        if (!string.IsNullOrWhiteSpace(requestedCategory) && categories.Count == 1)
+        {
+            var item = categories[0];
+            var label = item.LeaveCategory switch
+            {
+                "balance" => "Remaining leave balance",
+                "pending" => "Pending leave days",
+                "approved" => "Approved leave days",
+                "applied" => "Applied leave days",
+                "credit" => "Leave credit",
+                "adjust" => "Leave adjustment",
+                _ => item.LeaveCategory
+            };
+
+            return $"{label} for {empId}{rangeSuffix}: {item.CategoryValue}.";
+        }
+
+        var lines = categories.Select(c => $"- {c.LeaveCategory}: {c.CategoryValue}");
+        var contract = categories[0];
+        var contractSuffix = contract.ContractStatus != null
+            ? $"{Environment.NewLine}contract_status={contract.ContractStatus}, "
+              + $"contract_end_date={contract.ContractEndDate?.ToString(DateFormat, CultureInfo.InvariantCulture) ?? "N/A"}, "
+              + $"loss_of_pay={contract.LossOfPay}."
+            : string.Empty;
+
+        return $"Leave balance for {empId}{rangeSuffix}:{Environment.NewLine}"
+            + string.Join(Environment.NewLine, lines)
+            + contractSuffix;
     }
 
     private static DateTime? ParseOptionalDate(string? value)
