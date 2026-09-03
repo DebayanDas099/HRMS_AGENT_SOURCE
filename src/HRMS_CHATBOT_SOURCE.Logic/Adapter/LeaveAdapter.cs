@@ -7,29 +7,59 @@ namespace HRMS_CHATBOT_SOURCE.Logic.Adapter;
 
 internal static class LeaveAdapter
 {
-    internal static LeaveBalanceSummaryDto MapBalanceSummary(MSSQLResponse? response)
+    internal static IReadOnlyList<LeaveBalanceCategoryDto> MapBalanceCategories(MSSQLResponse? response)
     {
         EnsureSuccess(response);
 
         if (response?.Data is not DataSet { Tables.Count: > 0 } dataSet
             || dataSet.Tables[0].Rows.Count == 0)
         {
-            return new LeaveBalanceSummaryDto();
+            return [];
         }
 
-        var row = dataSet.Tables[0].Rows[0];
-        return new LeaveBalanceSummaryDto
+        var list = new List<LeaveBalanceCategoryDto>();
+        foreach (DataRow row in dataSet.Tables[0].Rows)
         {
-            EmpId = ReadOptionalString(row, "emp_id") ?? string.Empty,
-            AccruedLeaveBalance = ToDecimal(row["accrued_leave_balance"]),
-            AppliedLeave = ToDecimal(row["applied_leave"]),
-            RemainingLeaveBalance = ToDecimal(row["remaining_leave_balance"]),
-            LossOfPay = ToDecimal(row["loss_of_pay"]),
-            ContractEndDate = ReadOptionalDateTime(row, "contract_end_date"),
-            DaysUntilContractEnd = ReadOptionalInt(row, "days_until_contract_end"),
-            ContractStatus = ReadOptionalString(row, "contract_status"),
-            LeaveTypeLdLovIdFk = ReadOptionalLong(row, "leave_type_ld_lov_id_fk") ?? 0
-        };
+            list.Add(new LeaveBalanceCategoryDto
+            {
+                EmpId = ReadOptionalString(row, "emp_id") ?? string.Empty,
+                LeaveCategory = ReadOptionalString(row, "leave_category") ?? string.Empty,
+                CategoryValue = ToDecimal(row["category_value"]),
+                LossOfPay = ToDecimal(row["loss_of_pay"]),
+                ContractEndDate = ReadOptionalDateTime(row, "contract_end_date"),
+                DaysUntilContractEnd = ReadOptionalInt(row, "days_until_contract_end"),
+                ContractStatus = ReadOptionalString(row, "contract_status")
+            });
+        }
+
+        return list;
+    }
+
+    internal static List<PendingLeaveApplicationDto> MapPendingApplications(MSSQLResponse? response)
+    {
+        EnsureSuccess(response);
+
+        if (response?.Data is not DataSet { Tables.Count: > 0 } dataSet)
+        {
+            return [];
+        }
+
+        var rows = new List<PendingLeaveApplicationDto>();
+        foreach (DataRow row in dataSet.Tables[0].Rows)
+        {
+            rows.Add(new PendingLeaveApplicationDto
+            {
+                ApplicationReference = ReadOptionalString(row, "application_reference") ?? string.Empty,
+                Mobile = ReadOptionalString(row, "mobile") ?? string.Empty,
+                EmployeeName = ReadOptionalString(row, "employee_name"),
+                FromDate = ReadOptionalDateTime(row, "from_date") ?? default,
+                ToDate = ReadOptionalDateTime(row, "to_date") ?? default,
+                Reason = ReadOptionalString(row, "reason"),
+                AppliedOn = ReadOptionalDateTime(row, "applied_on") ?? default
+            });
+        }
+
+        return rows;
     }
 
     internal static string MapApplyResult(MSSQLResponse? response)
@@ -42,6 +72,29 @@ internal static class LeaveAdapter
         return string.IsNullOrWhiteSpace(outputMsg)
             ? "Leave application submitted successfully."
             : outputMsg;
+    }
+
+    internal static IReadOnlyList<HolidayListItemDto> MapHolidayList(MSSQLResponse? response)
+    {
+        EnsureSuccess(response);
+
+        if (response?.Data is not DataSet { Tables.Count: > 0 } dataSet)
+        {
+            return [];
+        }
+
+        var list = new List<HolidayListItemDto>();
+        foreach (DataRow row in dataSet.Tables[0].Rows)
+        {
+            list.Add(new HolidayListItemDto
+            {
+                HolidayDate = Convert.ToDateTime(row["holiday_date"]).Date,
+                HolidayName = ReadOptionalString(row, "holiday_name") ?? string.Empty,
+                HolidayType = ReadOptionalString(row, "holiday_type")
+            });
+        }
+
+        return list;
     }
 
     internal static void EnsureSuccess(MSSQLResponse? response)

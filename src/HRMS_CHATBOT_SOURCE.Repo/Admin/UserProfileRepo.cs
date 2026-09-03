@@ -225,4 +225,38 @@ public class UserProfileRepo : IUserProfileRepo
             OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
         };
     }
+
+    public async Task<MSSQLResponse?> GetActiveMobileNumbersAsync(CancellationToken cancellationToken = default)
+    {
+        var sqlParams = new SqlParameter[]
+        {
+            new()
+            {
+                ParameterName = "@outputCode",
+                DbType = DbType.Int32,
+                Direction = ParameterDirection.Output
+            },
+            new()
+            {
+                ParameterName = "@outputMsg",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Output,
+                Size = -1
+            }
+        };
+
+        return new MSSQLResponse
+        {
+            Data = await _sqlHelper.FetchData(new ExecuteDataSetRequest
+            {
+                CommandText = "[dbo].[usp_GetActiveMobileNumbers]",
+                CommandTimeout = SqlCommon.SQLCommandTimeOut,
+                CommandType = CommandType.StoredProcedure,
+                ConnectionProperties = _serviceContext.SQLConnectionModel,
+                IsMultipleTables = true,
+                Parameters = sqlParams
+            }),
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+    }
 }

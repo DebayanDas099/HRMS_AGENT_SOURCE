@@ -19,6 +19,7 @@ public sealed class HrmsHandoffWorkflowFactory
     private readonly HandoffWorkflowTemplate _blueprintTemplate;
     private readonly PolicyKnowledgeTools _policyKnowledgeTools;
     private readonly LeaveApplicationTools _leaveApplicationTools;
+    private readonly LeaveApprovalTools _leaveApprovalTools;
     private readonly DocumentAgentTools _documentAgentTools;
     private readonly RelativeDateParsingTools _relativeDateParsingTools;
     private readonly IServiceScopeFactory _scopeFactory;
@@ -28,6 +29,7 @@ public sealed class HrmsHandoffWorkflowFactory
         HandoffWorkflowTemplate blueprintTemplate,
         PolicyKnowledgeTools policyKnowledgeTools,
         LeaveApplicationTools leaveApplicationTools,
+        LeaveApprovalTools leaveApprovalTools,
         DocumentAgentTools documentAgentTools,
         RelativeDateParsingTools relativeDateParsingTools,
         IServiceScopeFactory scopeFactory)
@@ -36,6 +38,7 @@ public sealed class HrmsHandoffWorkflowFactory
         _blueprintTemplate = blueprintTemplate;
         _policyKnowledgeTools = policyKnowledgeTools;
         _leaveApplicationTools = leaveApplicationTools;
+        _leaveApprovalTools = leaveApprovalTools;
         _documentAgentTools = documentAgentTools;
         _relativeDateParsingTools = relativeDateParsingTools;
         _scopeFactory = scopeFactory;
@@ -127,7 +130,17 @@ public sealed class HrmsHandoffWorkflowFactory
             [
                 AIFunctionFactory.Create(_relativeDateParsingTools.ParseRelativeDateRange),
                 AIFunctionFactory.Create(_leaveApplicationTools.GetLeaveStatusAsync),
+                AIFunctionFactory.Create(_leaveApplicationTools.GetHolidayListAsync),
                 AIFunctionFactory.Create(_leaveApplicationTools.ValidateAndApplyLeaveAsync)
+            ];
+        }
+
+        if (string.Equals(agentName, AgentNames.LeaveApproval, StringComparison.OrdinalIgnoreCase))
+        {
+            return
+            [
+                AIFunctionFactory.Create(_leaveApprovalTools.GetPendingLeaveApplicationsAsync),
+                AIFunctionFactory.Create(_leaveApprovalTools.SubmitLeaveDecisionAsync)
             ];
         }
 
@@ -157,6 +170,7 @@ public sealed class HrmsHandoffWorkflowFactory
     {
         return string.Equals(agentName, AgentNames.Knowledge, StringComparison.OrdinalIgnoreCase)
             || string.Equals(agentName, AgentNames.LeaveApplication, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(agentName, AgentNames.LeaveApproval, StringComparison.OrdinalIgnoreCase)
             || string.Equals(agentName, AgentNames.Document, StringComparison.OrdinalIgnoreCase);
     }
 

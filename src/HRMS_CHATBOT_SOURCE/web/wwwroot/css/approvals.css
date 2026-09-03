@@ -1,0 +1,336 @@
+/* Leave Approvals - compact enterprise data grid. Reuses --primary/--surface/--text/
+   --border/--text-muted tokens already defined in admin.css so light/dark theming
+   just works; no new tokens introduced. */
+
+.apr-page {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.apr-header {
+    padding: 0.1rem 0.1rem 0.3rem;
+}
+
+.apr-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.apr-subtitle {
+    font-size: 0.86rem;
+    color: var(--text-muted);
+    margin: 0.25rem 0 0;
+}
+
+/* Toolbar */
+
+.apr-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.apr-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.apr-toolbar-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+}
+
+.apr-count-pill {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--primary);
+    background: rgba(67, 24, 255, 0.08);
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+}
+
+html.theme-dark .apr-count-pill {
+    color: #a78bfa;
+    background: rgba(167, 139, 250, 0.16);
+}
+
+.apr-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.apr-search {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.apr-search iconify-icon {
+    font-size: 1rem;
+}
+
+.apr-search input {
+    border: none;
+    background: transparent;
+    outline: none;
+    color: var(--text);
+    font-size: 0.85rem;
+    width: 170px;
+}
+
+.apr-search input::placeholder {
+    color: var(--text-muted);
+}
+
+.apr-selected-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.apr-submit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1.1rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    white-space: nowrap;
+}
+
+.apr-submit-btn:hover:not(:disabled) { transform: translateY(-1px); }
+
+.apr-submit-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Grid */
+
+.apr-grid-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    /* Vertical scroll kicks in once the grid grows past a comfortable page height,
+       so a long pending-applications list never pushes the toolbar/header offscreen;
+       overflow-x stays independent so the horizontal scrollbar (narrow viewports)
+       still works the same as before. */
+    max-height: 62vh;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+.apr-grid {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px;
+}
+
+.apr-grid th {
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.apr-grid td {
+    padding: 0.55rem 1rem;
+    font-size: 0.85rem;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+
+.apr-grid tbody tr {
+    height: 56px;
+    transition: background 0.12s ease;
+}
+
+.apr-grid tbody tr:hover { background: rgba(67, 24, 255, 0.035); }
+
+.apr-grid tbody tr:last-child td { border-bottom: none; }
+
+.apr-employee-cell {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.apr-reason-cell {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.apr-status-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #b45309;
+    background: rgba(245, 158, 11, 0.12);
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+}
+
+.apr-remarks-col {
+    width: 220px;
+}
+
+.apr-remarks-input {
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.12s ease;
+}
+
+.apr-remarks-input::placeholder { color: var(--text-muted); }
+.apr-remarks-input:focus { border-color: var(--primary); }
+
+.apr-remarks-input.is-required {
+    border-color: #dc2626;
+}
+
+.apr-remarks-hint {
+    display: block;
+    font-size: 0.68rem;
+    color: #dc2626;
+    margin-top: 0.2rem;
+}
+
+.apr-remarks-hint[hidden] {
+    display: none;
+}
+
+.apr-action-col {
+    width: 220px;
+}
+
+.apr-action-group {
+    display: flex;
+    gap: 0.4rem;
+}
+
+/* Approve/Reject are tinted green/red at rest (not just on hover/selection) - an
+   unselected row still reads clearly as "these are your two options", and the
+   selected one becomes the solid-filled version of the same color. */
+.apr-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.76rem;
+    font-weight: 600;
+    border-radius: 7px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.apr-action-btn iconify-icon { font-size: 0.85rem; }
+
+.apr-approve {
+    background: rgba(22, 163, 74, 0.1);
+    border-color: rgba(22, 163, 74, 0.3);
+    color: #16a34a;
+}
+
+.apr-approve:hover { background: rgba(22, 163, 74, 0.18); }
+
+.apr-reject {
+    background: rgba(220, 38, 38, 0.1);
+    border-color: rgba(220, 38, 38, 0.3);
+    color: #dc2626;
+}
+
+.apr-reject:hover { background: rgba(220, 38, 38, 0.18); }
+
+.apr-approve.is-selected {
+    background: #16a34a;
+    border-color: #16a34a;
+    color: #fff;
+}
+
+.apr-reject.is-selected {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: #fff;
+}
+
+/* Empty state */
+
+.apr-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2.5rem 1rem;
+    color: var(--text-muted);
+}
+
+.apr-empty-state iconify-icon {
+    font-size: 1.8rem;
+    opacity: 0.6;
+}
+
+.apr-empty-state p {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+/* Responsive */
+
+@media (max-width: 720px) {
+    .apr-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .apr-toolbar-right {
+        flex-wrap: wrap;
+    }
+
+    .apr-search input {
+        width: 100%;
+    }
+}

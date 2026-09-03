@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using HRMS_CHATBOT_SOURCE.Agent.Notifications;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Logic;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +11,7 @@ namespace HRMS_CHATBOT_SOURCE.Agent.Tools;
 
 /// <summary>
 /// The Leave Application Agent's tools: leave balance lookup and leave application
-/// submission.
+/// submission, and company holiday lookup.
 /// <para>
 /// The chat runtime never resolves a caller's HRMS user id - only the mobile number
 /// captured on the chat request ever reaches this layer, and that number is not
@@ -25,24 +26,30 @@ public sealed class LeaveApplicationTools
     private const string DateFormat = "yyyy-MM-dd";
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IAdminLeaveNotifier _adminLeaveNotifier;
     private readonly ILogger<LeaveApplicationTools> _logger;
 
-    public LeaveApplicationTools(IServiceScopeFactory scopeFactory, ILogger<LeaveApplicationTools> logger)
+    public LeaveApplicationTools(
+        IServiceScopeFactory scopeFactory,
+        IAdminLeaveNotifier adminLeaveNotifier,
+        ILogger<LeaveApplicationTools> logger)
     {
         _scopeFactory = scopeFactory;
+        _adminLeaveNotifier = adminLeaveNotifier;
         _logger = logger;
     }
 
     [Description(
-        "Gets the employee's leave balance summary (accrued, applied, remaining, loss of pay, "
-        + "contract status) for the given mobile number over one session date range. Defaults to "
-        + "the current month when dates are omitted. This tool covers a single range per call; if "
-        + "several date ranges were parsed, invoke it once per range. Ask the employee for their "
-        + "registered mobile number if you do not already have it.")]
+        "Gets the employee's leave balance from user_leave_balance for the given mobile number "
+        + "over one session date range. Omit category to return all metrics (credit, adjust, applied, "
+        + "approved, pending, balance). Pass category when the user asks for one metric only "
+        + "(e.g. pending, approved, applied, remaining/balance). Defaults to the current month when "
+        + "dates are omitted. Invoke once per parsed date range.")]
     public async Task<string> GetLeaveStatusAsync(
         [Description("The employee's registered mobile number.")] string mobile,
         [Description("Session start date (yyyy-MM-dd). Defaults to the first day of the current month.")] string? startDate = null,
         [Description("Session end date (yyyy-MM-dd). Defaults to the last day of the current month.")] string? endDate = null,
+        [Description("Balance metric: credit, adjust, applied, approved, pending, balance. Omit for all metrics.")] string? category = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -56,11 +63,11 @@ public sealed class LeaveApplicationTools
             var start = ParseOptionalDate(startDate);
             var end = ParseOptionalDate(endDate);
 
-            var summary = await leaveLogic
-                .GetLeaveBalanceSummaryAsync(mobile, start, end, cancellationToken)
+            var categories = await leaveLogic
+                .GetLeaveBalanceSummaryAsync(mobile, start, end, category, cancellationToken)
                 .ConfigureAwait(false);
 
-            return FormatSummary(summary);
+            return FormatBalanceCategories(categories, startDate, endDate, category);
         }
         catch (ValidationException ex)
         {
@@ -76,13 +83,14 @@ public sealed class LeaveApplicationTools
 
     [Description(
         "Validates and submits a leave application for the employee's registered mobile number. "
-        + "Requires from date, to date, and reason - collect all three from the employee before "
-        + "calling. Ask for the registered mobile number only when it is not already known from "
-        + "the session context.")]
+        + "Requires from date, to date, leave type, and reason - collect all four from the employee "
+        + "before calling. Leave type examples: casual, sick, earned, loss of pay. Ask for the "
+        + "registered mobile number only when it is not already known from the session context.")]
     public async Task<string> ValidateAndApplyLeaveAsync(
         [Description("The employee's registered mobile number.")] string mobile,
         [Description("Leave start date (yyyy-MM-dd). Required.")] string fromDate,
         [Description("Leave end date (yyyy-MM-dd). Required.")] string toDate,
+        [Description("Leave type (e.g. casual, sick, earned, loss of pay). Required.")] string leaveType,
         [Description("Reason for the leave request. Required.")] string reason,
         CancellationToken cancellationToken = default)
     {
@@ -91,14 +99,22 @@ public sealed class LeaveApplicationTools
             using var scope = _scopeFactory.CreateScope();
             var leaveLogic = scope.ServiceProvider.GetRequiredService<ILeaveLogic>();
 
-            return await leaveLogic
+            var result = await leaveLogic
                 .ValidateAndApplyLeaveAsync(
                     mobile,
                     ParseRequiredDate(fromDate),
                     ParseRequiredDate(toDate),
+                    leaveType,
                     reason,
                     cancellationToken)
                 .ConfigureAwait(false);
+
+            // Fire-and-forget by design: the chat turn should not wait on the admin
+            // notification. NotifyAppliedAsync resolves its own storage scope and
+            // catches/logs internally, so it is safe to outlive this scope.
+            _ = _adminLeaveNotifier.NotifyAppliedAsync(applicationReference: null, mobile, employeeName: null, CancellationToken.None);
+
+            return result;
         }
         catch (ValidationException ex)
         {
@@ -112,15 +128,130 @@ public sealed class LeaveApplicationTools
         }
     }
 
-    private static string FormatSummary(LeaveBalanceSummaryDto summary)
+    [Description(
+        "Gets company holidays for a date range. Use for holiday list questions. "
+        + "For month/year questions, parse the phrase with ParseRelativeDateRange first. "
+        + "For 'next holiday' or 'upcoming holidays', set startDate to today, endDate to year-end, "
+        + "and maxResults to 1 (or N). Do not fetch the full year and filter yourself.")]
+    public async Task<string> GetHolidayListAsync(
+        [Description("Range start (yyyy-MM-dd). Defaults to Jan 1 of current year, or today when maxResults is set.")] string? startDate = null,
+        [Description("Range end (yyyy-MM-dd). Defaults to Dec 31 of current year.")] string? endDate = null,
+        [Description("Max holidays to return. Use 1 for 'next holiday', 3 for 'next 3 holidays'. Omit for full list in range.")] int? maxResults = null,
+        CancellationToken cancellationToken = default)
     {
-        return $"Leave balance summary for {summary.EmpId}: "
-            + $"accrued={summary.AccruedLeaveBalance}, "
-            + $"applied={summary.AppliedLeave}, "
-            + $"remaining={summary.RemainingLeaveBalance}, "
-            + $"loss_of_pay={summary.LossOfPay}, "
-            + $"contract_status={summary.ContractStatus ?? "N/A"}, "
-            + $"contract_end_date={summary.ContractEndDate?.ToString(DateFormat, CultureInfo.InvariantCulture) ?? "N/A"}.";
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var leaveLogic = scope.ServiceProvider.GetRequiredService<ILeaveLogic>();
+
+            var holidays = await leaveLogic
+                .GetHolidayListAsync(
+                    ParseOptionalDate(startDate),
+                    ParseOptionalDate(endDate),
+                    maxResults,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            return FormatHolidayList(holidays, startDate, endDate, maxResults);
+        }
+        catch (ValidationException ex)
+        {
+            _logger.LogInformation("Holiday list lookup rejected: {Reason}", ex.Message);
+            return $"Unable to fetch holiday list: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Holiday list lookup failed.");
+            return "The leave system could not be reached. Tell the employee the service is temporarily unavailable and to try again shortly.";
+        }
+    }
+
+    private static string FormatHolidayList(
+        IReadOnlyList<HolidayListItemDto> holidays,
+        string? startDate,
+        string? endDate,
+        int? maxResults)
+    {
+        if (holidays.Count == 0)
+        {
+            return "No holidays found for the requested period.";
+        }
+
+        if (maxResults == 1)
+        {
+            var next = holidays[0];
+            var typeSuffix = string.IsNullOrWhiteSpace(next.HolidayType) ? string.Empty : $" ({next.HolidayType})";
+            return $"Next company holiday:{Environment.NewLine}"
+                + $"- {next.HolidayDate.ToString(DateFormat, CultureInfo.InvariantCulture)}: {next.HolidayName}{typeSuffix}";
+        }
+
+        var rangeStart = holidays[0].HolidayDate.ToString(DateFormat, CultureInfo.InvariantCulture);
+        var rangeEnd = holidays[^1].HolidayDate.ToString(DateFormat, CultureInfo.InvariantCulture);
+        if (!string.IsNullOrWhiteSpace(startDate) && !string.IsNullOrWhiteSpace(endDate))
+        {
+            rangeStart = startDate.Trim();
+            rangeEnd = endDate.Trim();
+        }
+
+        var lines = holidays.Select(h =>
+        {
+            var typeSuffix = string.IsNullOrWhiteSpace(h.HolidayType) ? string.Empty : $" ({h.HolidayType})";
+            return $"- {h.HolidayDate.ToString(DateFormat, CultureInfo.InvariantCulture)}: {h.HolidayName}{typeSuffix}";
+        });
+
+        var heading = maxResults.HasValue
+            ? $"Upcoming company holidays (showing up to {maxResults.Value}):"
+            : $"Company holidays ({rangeStart} to {rangeEnd}):";
+
+        return heading + Environment.NewLine + string.Join(Environment.NewLine, lines);
+    }
+
+    private static string FormatBalanceCategories(
+        IReadOnlyList<LeaveBalanceCategoryDto> categories,
+        string? startDate,
+        string? endDate,
+        string? requestedCategory)
+    {
+        if (categories.Count == 0)
+        {
+            return "No leave balance data found for the requested period.";
+        }
+
+        var empId = categories[0].EmpId;
+        var rangeSuffix = string.Empty;
+        if (!string.IsNullOrWhiteSpace(startDate) && !string.IsNullOrWhiteSpace(endDate))
+        {
+            rangeSuffix = $" ({startDate.Trim()} to {endDate.Trim()})";
+        }
+
+        if (!string.IsNullOrWhiteSpace(requestedCategory) && categories.Count == 1)
+        {
+            var item = categories[0];
+            var label = item.LeaveCategory switch
+            {
+                "balance" => "Remaining leave balance",
+                "pending" => "Pending leave days",
+                "approved" => "Approved leave days",
+                "applied" => "Applied leave days",
+                "credit" => "Leave credit",
+                "adjust" => "Leave adjustment",
+                _ => item.LeaveCategory
+            };
+
+            return $"{label} for {empId}{rangeSuffix}: {item.CategoryValue}.";
+        }
+
+        var lines = categories.Select(c => $"- {c.LeaveCategory}: {c.CategoryValue}");
+        var contract = categories[0];
+        var contractSuffix = contract.ContractStatus != null
+            ? $"{Environment.NewLine}contract_status={contract.ContractStatus}, "
+              + $"contract_end_date={contract.ContractEndDate?.ToString(DateFormat, CultureInfo.InvariantCulture) ?? "N/A"}, "
+              + $"loss_of_pay={contract.LossOfPay}."
+            : string.Empty;
+
+        return $"Leave balance for {empId}{rangeSuffix}:{Environment.NewLine}"
+            + string.Join(Environment.NewLine, lines)
+            + contractSuffix;
     }
 
     private static DateTime? ParseOptionalDate(string? value)

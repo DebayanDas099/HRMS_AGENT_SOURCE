@@ -24,6 +24,7 @@ public class LeaveRepo : ILeaveRepo
         string? mobile,
         DateTime startDate,
         DateTime endDate,
+        string? leaveCategory,
         CancellationToken cancellationToken = default)
     {
         var sqlParams = new List<SqlParameter>
@@ -49,6 +50,14 @@ public class LeaveRepo : ILeaveRepo
                 DbType = DbType.Date,
                 Direction = ParameterDirection.Input,
                 Value = endDate.Date
+            },
+            new()
+            {
+                ParameterName = "@leave_category",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 50,
+                Value = Utils.IIFStringOrDBNull(leaveCategory)
             }
         };
 
@@ -73,6 +82,7 @@ public class LeaveRepo : ILeaveRepo
         string? mobile,
         DateTime startDate,
         DateTime endDate,
+        string? leaveType,
         string? reason,
         CancellationToken cancellationToken = default)
     {
@@ -102,6 +112,14 @@ public class LeaveRepo : ILeaveRepo
             },
             new()
             {
+                ParameterName = "@leave_type",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 100,
+                Value = Utils.IIFStringOrDBNull(leaveType)
+            },
+            new()
+            {
                 ParameterName = "@reason",
                 DbType = DbType.String,
                 Direction = ParameterDirection.Input,
@@ -124,6 +142,135 @@ public class LeaveRepo : ILeaveRepo
         return new MSSQLResponse
         {
             RowsAffected = rowsAffected,
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+    }
+
+    public async Task<MSSQLResponse?> GetPendingLeaveApplicationsAsync(CancellationToken cancellationToken = default)
+    {
+        var sqlParams = new List<SqlParameter>();
+        sqlParams.AddRange(CreateOutputParams());
+
+        return new MSSQLResponse
+        {
+            Data = await _sqlHelper.FetchData(new ExecuteDataSetRequest
+            {
+                CommandText = "[dbo].[Get_Pending_Leave_Applications]",
+                CommandTimeout = SqlCommon.SQLCommandTimeOut,
+                CommandType = CommandType.StoredProcedure,
+                ConnectionProperties = _serviceContext.SQLConnectionModel,
+                IsMultipleTables = true,
+                Parameters = sqlParams.ToArray()
+            }),
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+    }
+
+    public async Task<MSSQLResponse?> UpdateLeaveApplicationStatusAsync(
+        string applicationReference,
+        string newStatus,
+        string approvedBy,
+        string? note,
+        CancellationToken cancellationToken = default)
+    {
+        var sqlParams = new List<SqlParameter>
+        {
+            new()
+            {
+                ParameterName = "@application_reference",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 50,
+                Value = Utils.IIFStringOrDBNull(applicationReference)
+            },
+            new()
+            {
+                ParameterName = "@new_status",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 20,
+                Value = Utils.IIFStringOrDBNull(newStatus)
+            },
+            new()
+            {
+                ParameterName = "@approved_by",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 100,
+                Value = Utils.IIFStringOrDBNull(approvedBy)
+            },
+            new()
+            {
+                ParameterName = "@note",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = -1,
+                Value = Utils.IIFStringOrDBNull(note)
+            }
+        };
+
+        sqlParams.AddRange(CreateOutputParams());
+
+        var rowsAffected = await _sqlHelper.ExecuteNonQuery(new ExecuteNonQueryRequest
+        {
+            CommandText = "[dbo].[Update_Leave_Application_Status]",
+            CommandTimeout = SqlCommon.SQLCommandTimeOut,
+            CommandType = CommandType.StoredProcedure,
+            ConnectionProperties = _serviceContext.SQLConnectionModel,
+            Parameters = sqlParams.ToArray()
+        });
+
+        return new MSSQLResponse
+        {
+            RowsAffected = rowsAffected,
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+    }
+
+    public async Task<MSSQLResponse?> GetHolidayListAsync(
+        DateTime startDate,
+        DateTime endDate,
+        int? maxResults,
+        CancellationToken cancellationToken = default)
+    {
+        var sqlParams = new List<SqlParameter>
+        {
+            new()
+            {
+                ParameterName = "@start_date",
+                DbType = DbType.Date,
+                Direction = ParameterDirection.Input,
+                Value = startDate.Date
+            },
+            new()
+            {
+                ParameterName = "@end_date",
+                DbType = DbType.Date,
+                Direction = ParameterDirection.Input,
+                Value = endDate.Date
+            },
+            new()
+            {
+                ParameterName = "@max_results",
+                DbType = DbType.Int32,
+                Direction = ParameterDirection.Input,
+                Value = maxResults.HasValue ? maxResults.Value : DBNull.Value
+            }
+        };
+
+        sqlParams.AddRange(CreateOutputParams());
+
+        return new MSSQLResponse
+        {
+            Data = await _sqlHelper.FetchData(new ExecuteDataSetRequest
+            {
+                CommandText = "[dbo].[Get_Holiday_List]",
+                CommandTimeout = SqlCommon.SQLCommandTimeOut,
+                CommandType = CommandType.StoredProcedure,
+                ConnectionProperties = _serviceContext.SQLConnectionModel,
+                IsMultipleTables = true,
+                Parameters = sqlParams.ToArray()
+            }),
             OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
         };
     }

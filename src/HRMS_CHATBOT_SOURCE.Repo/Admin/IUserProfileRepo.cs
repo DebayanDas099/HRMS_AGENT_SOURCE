@@ -9,4 +9,5 @@ public interface IUserProfileRepo
     Task<string?> GetUserMobileByUserIdAsync(string? userId, CancellationToken cancellationToken = default);
     Task<string?> GetUserEmailByMobileAsync(string? mobile, CancellationToken cancellationToken = default);
     Task<MSSQLResponse?> UpdateLastAccessedAsync(string? userId, CancellationToken cancellationToken = default);
+    Task<MSSQLResponse?> GetActiveMobileNumbersAsync(CancellationToken cancellationToken = default);
 }

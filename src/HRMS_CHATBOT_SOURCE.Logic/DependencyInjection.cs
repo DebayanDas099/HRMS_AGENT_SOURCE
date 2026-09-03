@@ -14,6 +14,7 @@ public static class DependencyInjection
         services.AddScoped<IAgentAccessService, AgentAccessService>();
         services.AddScoped<IChatLogic, ChatLogic>();
         services.AddScoped<ILeaveLogic, LeaveLogic>();
+        services.AddScoped<ILeaveApprovalLogic, LeaveApprovalLogic>();
         return services;
     }
 }

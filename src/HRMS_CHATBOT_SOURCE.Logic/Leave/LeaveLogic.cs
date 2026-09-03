@@ -14,10 +14,11 @@ public class LeaveLogic : ILeaveLogic
         _leaveRepo = leaveRepo;
     }
 
-    public async Task<LeaveBalanceSummaryDto> GetLeaveBalanceSummaryAsync(
+    public async Task<IReadOnlyList<LeaveBalanceCategoryDto>> GetLeaveBalanceSummaryAsync(
         string? mobile,
         DateTime? startDate,
         DateTime? endDate,
+        string? leaveCategory,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(mobile))
@@ -34,20 +35,32 @@ public class LeaveLogic : ILeaveLogic
             throw new ValidationException("Start date cannot be after end date.");
         }
 
-        var response = await _leaveRepo.GetLeaveDetailsByUserAsync(mobile.Trim(), start, end, cancellationToken);
-        return LeaveAdapter.MapBalanceSummary(response);
+        var response = await _leaveRepo.GetLeaveDetailsByUserAsync(
+            mobile.Trim(),
+            start,
+            end,
+            string.IsNullOrWhiteSpace(leaveCategory) ? null : leaveCategory.Trim(),
+            cancellationToken);
+
+        return LeaveAdapter.MapBalanceCategories(response);
     }
 
     public async Task<string> ValidateAndApplyLeaveAsync(
         string? mobile,
         DateTime fromDate,
         DateTime toDate,
+        string? leaveType,
         string? reason,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(mobile))
         {
             throw new ValidationException("Mobile number is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(leaveType))
+        {
+            throw new ValidationException("Leave type is required.");
         }
 
         if (string.IsNullOrWhiteSpace(reason))
@@ -67,9 +80,40 @@ public class LeaveLogic : ILeaveLogic
             mobile.Trim(),
             start,
             end,
+            leaveType.Trim(),
             reason.Trim(),
             cancellationToken);
 
         return LeaveAdapter.MapApplyResult(response);
+    }
+
+    public async Task<IReadOnlyList<HolidayListItemDto>> GetHolidayListAsync(
+        DateTime? startDate,
+        DateTime? endDate,
+        int? maxResults,
+        CancellationToken cancellationToken = default)
+    {
+        var today = DateTime.Today;
+        DateTime start;
+        DateTime end;
+
+        if (maxResults.HasValue && !startDate.HasValue && !endDate.HasValue)
+        {
+            start = today;
+            end = new DateTime(today.Year, 12, 31);
+        }
+        else
+        {
+            start = (startDate ?? new DateTime(today.Year, 1, 1)).Date;
+            end = (endDate ?? new DateTime(start.Year, 12, 31)).Date;
+        }
+
+        if (start > end)
+        {
+            throw new ValidationException("Start date cannot be after end date.");
+        }
+
+        var response = await _leaveRepo.GetHolidayListAsync(start, end, maxResults, cancellationToken);
+        return LeaveAdapter.MapHolidayList(response);
     }
 }
