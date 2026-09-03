@@ -1,3 +1,5 @@
+using HRMS_CHATBOT_SOURCE.Domain.Constants;
+
 namespace HRMS_CHATBOT_SOURCE.Logic;
 
 public class AgentAccessService : IAgentAccessService
@@ -9,7 +11,12 @@ public class AgentAccessService : IAgentAccessService
         _agentLogic = agentLogic;
     }
 
-    public async Task<IReadOnlyList<string>> GetEnabledAgentNamesAsync(
+    public Task<IReadOnlyList<string>> GetEnabledAgentNamesAsync(
+        string? mobile,
+        CancellationToken cancellationToken = default) =>
+        GetWorkflowAgentNamesAsync(mobile, cancellationToken);
+
+    public async Task<IReadOnlyList<string>> GetWorkflowAgentNamesAsync(
         string? mobile,
         CancellationToken cancellationToken = default)
     {
@@ -17,7 +24,22 @@ public class AgentAccessService : IAgentAccessService
         return agents
             .Select(agent => agent.AgentName)
             .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Where(name => !string.Equals(name, AgentNames.VoiceInput, StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    public async Task<bool> IsVoiceInputEnabledAsync(
+        string mobile,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(mobile))
+        {
+            return false;
+        }
+
+        var agents = await _agentLogic.GetEnabledAgentsByMobileAsync(mobile.Trim(), cancellationToken);
+        return agents.Any(agent =>
+            string.Equals(agent.AgentName, AgentNames.VoiceInput, StringComparison.OrdinalIgnoreCase));
     }
 }

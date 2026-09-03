@@ -15,4 +15,11 @@ public interface IHrmsChatRuntime
         string message,
         string? authenticatedMobile = null,
         CancellationToken cancellationToken = default);
+
+    IAsyncEnumerable<ChatStreamChunk> RunStreamAsync(
+        IReadOnlyCollection<string> enabledAgentNames,
+        string? conversationId,
+        string message,
+        string? authenticatedMobile = null,
+        CancellationToken cancellationToken = default);
 }
