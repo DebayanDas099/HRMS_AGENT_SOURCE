@@ -73,6 +73,7 @@ public class LeaveRepo : ILeaveRepo
         string? mobile,
         DateTime startDate,
         DateTime endDate,
+        string? leaveType,
         string? reason,
         CancellationToken cancellationToken = default)
     {
@@ -102,6 +103,14 @@ public class LeaveRepo : ILeaveRepo
             },
             new()
             {
+                ParameterName = "@leave_type",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 100,
+                Value = Utils.IIFStringOrDBNull(leaveType)
+            },
+            new()
+            {
                 ParameterName = "@reason",
                 DbType = DbType.String,
                 Direction = ParameterDirection.Input,
@@ -124,6 +133,54 @@ public class LeaveRepo : ILeaveRepo
         return new MSSQLResponse
         {
             RowsAffected = rowsAffected,
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+    }
+
+    public async Task<MSSQLResponse?> GetHolidayListAsync(
+        DateTime startDate,
+        DateTime endDate,
+        int? maxResults,
+        CancellationToken cancellationToken = default)
+    {
+        var sqlParams = new List<SqlParameter>
+        {
+            new()
+            {
+                ParameterName = "@start_date",
+                DbType = DbType.Date,
+                Direction = ParameterDirection.Input,
+                Value = startDate.Date
+            },
+            new()
+            {
+                ParameterName = "@end_date",
+                DbType = DbType.Date,
+                Direction = ParameterDirection.Input,
+                Value = endDate.Date
+            },
+            new()
+            {
+                ParameterName = "@max_results",
+                DbType = DbType.Int32,
+                Direction = ParameterDirection.Input,
+                Value = maxResults.HasValue ? maxResults.Value : DBNull.Value
+            }
+        };
+
+        sqlParams.AddRange(CreateOutputParams());
+
+        return new MSSQLResponse
+        {
+            Data = await _sqlHelper.FetchData(new ExecuteDataSetRequest
+            {
+                CommandText = "[dbo].[Get_Holiday_List]",
+                CommandTimeout = SqlCommon.SQLCommandTimeOut,
+                CommandType = CommandType.StoredProcedure,
+                ConnectionProperties = _serviceContext.SQLConnectionModel,
+                IsMultipleTables = true,
+                Parameters = sqlParams.ToArray()
+            }),
             OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
         };
     }

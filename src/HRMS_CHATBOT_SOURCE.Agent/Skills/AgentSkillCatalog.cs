@@ -12,7 +12,7 @@ public static class AgentSkillCatalog
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [AgentNames.LeaveApplication] =
-                "leave balance, leave application, leave status, and leave approval",
+                "leave balance, leave application, leave status, leave approval, and company holiday list",
             [AgentNames.Document] =
                 "document repository, uploads, ingestion status, and repository metadata",
             [AgentNames.Knowledge] =

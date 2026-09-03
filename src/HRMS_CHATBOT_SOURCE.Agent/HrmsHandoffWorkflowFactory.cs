@@ -127,6 +127,7 @@ public sealed class HrmsHandoffWorkflowFactory
             [
                 AIFunctionFactory.Create(_relativeDateParsingTools.ParseRelativeDateRange),
                 AIFunctionFactory.Create(_leaveApplicationTools.GetLeaveStatusAsync),
+                AIFunctionFactory.Create(_leaveApplicationTools.GetHolidayListAsync),
                 AIFunctionFactory.Create(_leaveApplicationTools.ValidateAndApplyLeaveAsync)
             ];
         }

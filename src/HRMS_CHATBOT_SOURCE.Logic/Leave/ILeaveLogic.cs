@@ -14,6 +14,13 @@ public interface ILeaveLogic
         string? mobile,
         DateTime fromDate,
         DateTime toDate,
+        string? leaveType,
         string? reason,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<HolidayListItemDto>> GetHolidayListAsync(
+        DateTime? startDate,
+        DateTime? endDate,
+        int? maxResults,
         CancellationToken cancellationToken = default);
 }
