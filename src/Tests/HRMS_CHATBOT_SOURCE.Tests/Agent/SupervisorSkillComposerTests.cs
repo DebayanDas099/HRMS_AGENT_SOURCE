@@ -1,6 +1,7 @@
 using HRMS_CHATBOT_SOURCE.Agent;
 using HRMS_CHATBOT_SOURCE.Agent.Skills;
 using HRMS_CHATBOT_SOURCE.Domain.Constants;
+using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Logic.Common;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -86,6 +87,42 @@ public class SupervisorSkillComposerTests
     }
 
     [Fact]
+    public void BuildParsedDateNotice_MultipleRanges_InstructsOneLeaveCallPerRange()
+    {
+        var commonLogic = new StubDateLogic(new RelativeDateParseResult
+        {
+            Found = true,
+            Phrase = "how many leaves of current and last month do i have ?",
+            Message = "Resolved 2 date ranges. Call leave balance once per range.",
+            Ranges =
+            [
+                new RelativeDateRangeDto
+                {
+                    StartDate = "2026-08-01",
+                    EndDate = "2026-08-31",
+                    Label = "August 2026"
+                },
+                new RelativeDateRangeDto
+                {
+                    StartDate = "2026-09-01",
+                    EndDate = "2026-09-30",
+                    Label = "September 2026"
+                }
+            ]
+        });
+
+        var notice = SupervisorSkillComposer.BuildParsedDateNotice(
+            "how many leaves of current and last month do i have ?",
+            commonLogic);
+
+        Assert.NotNull(notice);
+        Assert.Contains("2026-08-01 to 2026-08-31", notice);
+        Assert.Contains("2026-09-01 to 2026-09-30", notice);
+        Assert.Contains("once per range", notice, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Do not merge", notice, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void FilterBlueprint_OmitsDisabledLeaveAgentAndHandoff()
     {
         var source = new AgentFrameworkBlueprint
@@ -138,5 +175,39 @@ public class SupervisorSkillComposerTests
         var afterHeading = start + marker.Length;
         var next = markdown.IndexOf("## ", afterHeading, StringComparison.Ordinal);
         return next < 0 ? markdown[afterHeading..] : markdown[afterHeading..next];
+    }
+
+    private sealed class StubDateLogic : ICommonLogic
+    {
+        private readonly RelativeDateParseResult _result;
+
+        public StubDateLogic(RelativeDateParseResult result)
+        {
+            _result = result;
+        }
+
+        public DateTime GetReferenceDateTime(DateTime? utcNow = null) => DateTime.UtcNow;
+
+        public RelativeDateParseResult ParseRelativeDate(string? phrase, DateTime? referenceDate = null)
+            => _result;
+
+        public RelativeDateParseResult ParseRelativeDateFromUserMessage(string? message, DateTime? referenceDate = null)
+            => _result;
+
+        public Task<string?> GetUserEmailByMobileAsync(string? mobile, CancellationToken cancellationToken = default)
+            => Task.FromResult<string?>(null);
+
+        public Task<int> SendMailNewAsync(
+            string toAddress,
+            string mailSubject,
+            string mailBody,
+            string? attachmentPath = null,
+            string? ccAddress = null,
+            string? bccAddress = null,
+            string? fromAddress = null,
+            string? senderApp = null,
+            string? senderTask = null,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(0);
     }
 }

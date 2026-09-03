@@ -7,6 +7,7 @@ using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Settings;
 using HRMS_CHATBOT_SOURCE.Domain.Helpers;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
+using HRMS_CHATBOT_SOURCE.Logic.Common;
 using HRMS_CHATBOT_SOURCE.Logic.Adapter;
 using HRMS_CHATBOT_SOURCE.Repo.Document;
 using Microsoft.AspNetCore.Http;
@@ -26,6 +27,7 @@ public class DocumentLogic : IDocumentLogic
     private readonly IDocumentRepo _documentRepo;
     private readonly IDocumentBlobService _documentBlobService;
     private readonly IDocumentIngestionPipeline? _documentIngestionPipeline;
+    private readonly ICommonLogic? _commonLogic;
     private readonly ILogger<DocumentLogic>? _logger;
     private readonly AppSettings _appSettings;
 
@@ -33,12 +35,14 @@ public class DocumentLogic : IDocumentLogic
         IDocumentRepo documentRepo,
         IDocumentBlobService documentBlobService,
         IDocumentIngestionPipeline? documentIngestionPipeline = null,
+        ICommonLogic? commonLogic = null,
         ILogger<DocumentLogic>? logger = null,
         IOptions<AppSettings>? appSettings = null)
     {
         _documentRepo = documentRepo;
         _documentBlobService = documentBlobService;
         _documentIngestionPipeline = documentIngestionPipeline;
+        _commonLogic = commonLogic;
         _logger = logger;
         _appSettings = appSettings?.Value ?? new AppSettings();
     }
@@ -384,6 +388,98 @@ public class DocumentLogic : IDocumentLogic
 
         documentId = payload.DocumentId;
         return true;
+    }
+
+    public async Task<string> SendDocumentLinkByMailAsync(
+        long documentId,
+        string? documentName = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (documentId <= 0)
+        {
+            return "Invalid document id.";
+        }
+
+        if (_commonLogic == null)
+        {
+            return "Mail service is not available right now.";
+        }
+
+        var mobile = ChatContext.Value?.Mobile;
+        if (string.IsNullOrWhiteSpace(mobile))
+        {
+            return "Unable to identify your registered mobile number for this chat.";
+        }
+
+        var recipient = await _commonLogic
+            .GetUserEmailByMobileAsync(mobile, cancellationToken)
+            .ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(recipient))
+        {
+            return $"No active email id found for mobile {mobile}.";
+        }
+
+        var downloadLink = BuildDocumentDownloadLink(documentId);
+        if (downloadLink.StartsWith("Unable to generate", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Unable to generate download link for email.";
+        }
+
+        var safeName = string.IsNullOrWhiteSpace(documentName)
+            ? $"Document #{documentId}"
+            : documentName.Trim();
+        var subject = $"HRMS Document Link - {safeName}";
+        var requestedAt = DateTime.Now.ToString("dd-MMM-yyyy hh:mm tt");
+        var body =
+            "<div style=\"margin:0;padding:24px;background:#f4f7fe;font-family:Segoe UI,Arial,sans-serif;\">"
+            + "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" "
+            + "style=\"max-width:620px;width:100%;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 18px 40px rgba(112,144,176,0.12);\">"
+            + "<tr><td style=\"background:#4318ff;background-image:linear-gradient(135deg,#868cff 0%,#4318ff 45%,#e040fb 100%);color:#ffffff;padding:24px 28px;text-align:center;\">"
+            + "<div style=\"font-size:12px;letter-spacing:.8px;opacity:.9;\">HRMS AI</div>"
+            + "<div style=\"font-size:28px;line-height:34px;font-weight:700;margin-top:4px;\">Your Document Is Ready</div>"
+            + "<div style=\"font-size:14px;line-height:20px;opacity:.95;margin-top:6px;\">Requested Document Delivery</div>"
+            + "</td></tr>"
+            + "<tr><td style=\"padding:26px 28px 18px;color:#1b2559;\">"
+            + "<p style=\"margin:0 0 14px;font-size:15px;color:#1b2559;\">Hi User,</p>"
+            + "<p style=\"margin:0 0 14px;font-size:15px;line-height:1.6;\">"
+            + $"As requested, please find the <b>{safeName}</b> document available for your reference."
+            + "</p>"
+            + "<p style=\"margin:0 0 16px;font-size:15px;line-height:1.6;\">"
+            + "You can download the document by clicking the button below."
+            + "</p>"
+            + "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" "
+            + "style=\"width:100%;margin:0 0 18px;border:1px solid rgba(163,174,208,0.28);border-radius:12px;background:#fafbff;\">"
+            + "<tr><td style=\"padding:12px 14px;font-size:12px;color:#4318ff;font-weight:700;letter-spacing:.6px;\">DOCUMENT DETAILS</td></tr>"
+            + $"<tr><td style=\"padding:0 14px 8px;font-size:13px;color:#1b2559;\">Document Name: <b>{safeName}</b></td></tr>"
+            + "<tr><td style=\"padding:0 14px 8px;font-size:13px;color:#1b2559;\">Category: Policy / Training</td></tr>"
+            + $"<tr><td style=\"padding:0 14px 14px;font-size:13px;color:#1b2559;\">Requested At: {requestedAt}</td></tr>"
+            + "</table>"
+            + "<div style=\"text-align:center;margin:0 0 18px;\">"
+            + $"<a href=\"{downloadLink}\" "
+            + "style=\"display:inline-block;padding:11px 24px;background:#4318ff;background-image:linear-gradient(135deg,#868cff 0%,#4318ff 55%,#5b5bd6 100%);box-shadow:0 12px 28px rgba(67,24,255,0.28);color:#ffffff;text-decoration:none;border-radius:999px;font-size:14px;font-weight:700;\">"
+            + $"Download {safeName}"
+            + "</a>"
+            + "</div>"
+            + "<p style=\"margin:0 0 14px;font-size:14px;line-height:1.6;color:#8f9bba;\">"
+            + "If you need any further assistance, please contact the HRMS Team."
+            + "</p>"
+            + "<p style=\"margin:0;font-size:14px;line-height:1.6;color:#1b2559;\">"
+            + "Regards,<br/><b>HRMS Team</b>"
+            + "</p>"
+            + "</td></tr>"
+            + "<tr><td style=\"text-align:center;padding:14px 20px;background:#f4f7fe;color:#a3aed0;font-size:11px;\">"
+            + "This is a system generated mail. Please do not reply."
+            + "</td></tr>"
+            + "</table>"
+            + "</div>";
+
+        var responseCode = await _commonLogic
+            .SendMailNewAsync(recipient, subject, body, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        return responseCode == 1
+            ? $"Mail sent successfully to {recipient}."
+            : $"Failed to send mail to {recipient}.";
     }
 
     private static void ValidateTitle(string? title)

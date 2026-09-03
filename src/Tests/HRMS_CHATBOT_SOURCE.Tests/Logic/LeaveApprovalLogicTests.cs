@@ -127,7 +127,10 @@ public class LeaveApprovalLogicTests
         public Task<MSSQLResponse?> GetLeaveDetailsByUserAsync(string? mobile, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
-        public Task<MSSQLResponse?> ValidateAndApplyLeaveByUserAsync(string? mobile, DateTime startDate, DateTime endDate, string? reason, CancellationToken cancellationToken = default)
+        public Task<MSSQLResponse?> ValidateAndApplyLeaveByUserAsync(string? mobile, DateTime startDate, DateTime endDate, string? leaveType, string? reason, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<MSSQLResponse?> GetHolidayListAsync(DateTime startDate, DateTime endDate, int? maxResults, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
         public Task<MSSQLResponse?> GetPendingLeaveApplicationsAsync(CancellationToken cancellationToken = default)

@@ -71,6 +71,29 @@ internal static class LeaveAdapter
             : outputMsg;
     }
 
+    internal static IReadOnlyList<HolidayListItemDto> MapHolidayList(MSSQLResponse? response)
+    {
+        EnsureSuccess(response);
+
+        if (response?.Data is not DataSet { Tables.Count: > 0 } dataSet)
+        {
+            return [];
+        }
+
+        var list = new List<HolidayListItemDto>();
+        foreach (DataRow row in dataSet.Tables[0].Rows)
+        {
+            list.Add(new HolidayListItemDto
+            {
+                HolidayDate = Convert.ToDateTime(row["holiday_date"]).Date,
+                HolidayName = ReadOptionalString(row, "holiday_name") ?? string.Empty,
+                HolidayType = ReadOptionalString(row, "holiday_type")
+            });
+        }
+
+        return list;
+    }
+
     internal static void EnsureSuccess(MSSQLResponse? response)
     {
         var outputCode = int.TryParse(Convert.ToString(response?.OutputParameters?.FirstOrDefault(p =>

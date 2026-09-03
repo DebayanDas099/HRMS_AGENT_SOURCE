@@ -42,4 +42,9 @@ public interface IDocumentLogic
     string BuildDocumentDownloadLink(long documentId);
 
     bool TryDecodeDocumentDownloadToken(string? token, out long documentId);
+
+    Task<string> SendDocumentLinkByMailAsync(
+        long documentId,
+        string? documentName = null,
+        CancellationToken cancellationToken = default);
 }

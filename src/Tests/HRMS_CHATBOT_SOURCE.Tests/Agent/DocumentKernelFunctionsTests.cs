@@ -23,8 +23,36 @@ public class DocumentAgentToolsTests
         Assert.Equal("https://localhost:7249/api/ChatDocumentDownload?token=test-token", link);
     }
 
+    [Fact]
+    public async Task ResolveDocumentsForDeliveryAsync_WhenPrimaryReturnsEmpty_UsesFallbackThreshold()
+    {
+        FakeDocumentLogic.ResetTracking();
+        var fake = new FakeDocumentLogic();
+        var services = new ServiceCollection();
+        services.AddScoped<IDocumentLogic>(_ => fake);
+        using var provider = services.BuildServiceProvider();
+
+        var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+        var tools = new DocumentAgentTools(scopeFactory);
+
+        var matches = await tools.ResolveDocumentsForDeliveryAsync("share me the letest Posh Policy document over mail");
+
+        Assert.Equal(2, FakeDocumentLogic.MinScoreCalls.Count);
+        Assert.Equal(65, FakeDocumentLogic.MinScoreCalls[0]);
+        Assert.Equal(10, FakeDocumentLogic.MinScoreCalls[1]);
+        Assert.Single(matches);
+        Assert.Equal("Posh Policy 2026", matches[0].Name);
+    }
+
     private sealed class FakeDocumentLogic : IDocumentLogic
     {
+        public static List<int> MinScoreCalls { get; } = [];
+
+        public static void ResetTracking()
+        {
+            MinScoreCalls.Clear();
+        }
+
         public void SetChatTurnContext(string? mobile, string? baseUrl)
         {
         }
@@ -69,7 +97,27 @@ public class DocumentAgentToolsTests
             int minScore = 65,
             int topCount = 5,
             CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<DocumentSimilarityMatchDto>>([]);
+        {
+            MinScoreCalls.Add(minScore);
+
+            if (minScore >= 65)
+            {
+                return Task.FromResult<IReadOnlyList<DocumentSimilarityMatchDto>>([]);
+            }
+
+            return Task.FromResult<IReadOnlyList<DocumentSimilarityMatchDto>>(
+            [
+                new DocumentSimilarityMatchDto
+                {
+                    DocumentId = 13,
+                    Name = "Posh Policy 2026",
+                    Category = "Policy",
+                    Active = "Y",
+                    IngestionStatus = "Completed",
+                    SimilarityScore = 58
+                }
+            ]);
+        }
 
         public string BuildDocumentDownloadLink(long documentId)
             => $"https://localhost:7249/api/ChatDocumentDownload?token=test-token";
@@ -79,5 +127,8 @@ public class DocumentAgentToolsTests
             documentId = 13;
             return true;
         }
+
+        public Task<string> SendDocumentLinkByMailAsync(long documentId, string? documentName = null, CancellationToken cancellationToken = default)
+            => Task.FromResult("Mail sent successfully.");
     }
 }

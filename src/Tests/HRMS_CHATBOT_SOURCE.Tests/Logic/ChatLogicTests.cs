@@ -143,6 +143,9 @@ public class ChatLogicTests
 
         public Task<string?> GetUserMobileByUserIdAsync(string? userId, CancellationToken cancellationToken = default)
             => Task.FromResult<string?>(null);
+
+        public Task<string?> GetUserEmailByMobileAsync(string? mobile, CancellationToken cancellationToken = default)
+            => Task.FromResult<string?>(null);
     }
 
     private sealed class FakeServiceContext : IServiceContext

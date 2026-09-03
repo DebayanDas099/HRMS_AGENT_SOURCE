@@ -127,6 +127,7 @@ public sealed class HrmsHandoffWorkflowFactory
             [
                 AIFunctionFactory.Create(_relativeDateParsingTools.ParseRelativeDateRange),
                 AIFunctionFactory.Create(_leaveApplicationTools.GetLeaveStatusAsync),
+                AIFunctionFactory.Create(_leaveApplicationTools.GetHolidayListAsync),
                 AIFunctionFactory.Create(_leaveApplicationTools.ValidateAndApplyLeaveAsync)
             ];
         }
@@ -135,8 +136,10 @@ public sealed class HrmsHandoffWorkflowFactory
         {
             return
             [
+                AIFunctionFactory.Create(_documentAgentTools.ResolveDocumentsForDeliveryAsync),
                 AIFunctionFactory.Create(_documentAgentTools.SearchDocumentsBySimilarityAsync),
-                AIFunctionFactory.Create(_documentAgentTools.BuildDocumentDownloadLink)
+                AIFunctionFactory.Create(_documentAgentTools.BuildDocumentDownloadLink),
+                AIFunctionFactory.Create(_documentAgentTools.SendDocumentLinkByMailAsync)
             ];
         }
 

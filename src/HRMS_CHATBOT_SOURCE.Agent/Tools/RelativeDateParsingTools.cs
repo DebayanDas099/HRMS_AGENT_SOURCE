@@ -16,9 +16,9 @@ public sealed class RelativeDateParsingTools
 
     [Description(
         "Parses a relative or natural-language date phrase (for example 'last month', "
-        + "'this week', 'September 2026') into concrete start and end dates (yyyy-MM-dd). "
-        + "Use the injected Current Date as the anchor."
-        + "Fallback: parses a natural-language date phrase (e.g. 'last month') into start_date/end_date (yyyy-MM-dd) using Current Date as anchor.")]
+        + "'this week', 'September 2026', 'current and last month') into one or more "
+        + "concrete start and end dates (yyyy-MM-dd). Use the injected Current Date as the anchor. "
+        + "If range_count is greater than 1, call leave balance once per item in ranges; do not merge.")]
     public string ParseRelativeDateRange(
         [Description("The date phrase from the user, e.g. 'last month' or 'from 1 Sep to 15 Sep'.")]
         string phrase)
@@ -31,10 +31,15 @@ public sealed class RelativeDateParsingTools
         {
             found = result.Found,
             phrase = result.Phrase,
-            start_date = result.StartDate,
-            end_date = result.EndDate,
-            type = result.Type,
-            message = result.Message
-        }, new JsonSerializerOptions { WriteIndented = false });
+            message = result.Message,
+            range_count = result.Ranges.Count,
+            ranges = result.Ranges.Select(r => new
+            {
+                start_date = r.StartDate,
+                end_date = r.EndDate,
+                type = r.Type,
+                label = r.Label
+            })
+        });
     }
 }
