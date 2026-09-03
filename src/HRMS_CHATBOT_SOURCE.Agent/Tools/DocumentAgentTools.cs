@@ -2,12 +2,20 @@ using System.ComponentModel;
 using System.Text.RegularExpressions;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Logic;
+using HRMS_CHATBOT_SOURCE.Logic.Common;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HRMS_CHATBOT_SOURCE.Agent.Tools;
 
 public sealed class DocumentAgentTools
 {
+    private enum DeliveryPreference
+    {
+        None,
+        Latest,
+        Oldest
+    }
+
     private readonly IServiceScopeFactory _scopeFactory;
 
     public DocumentAgentTools(IServiceScopeFactory scopeFactory)
@@ -39,6 +47,7 @@ public sealed class DocumentAgentTools
     {
         using var scope = _scopeFactory.CreateScope();
         var documentLogic = scope.ServiceProvider.GetRequiredService<IDocumentLogic>();
+        var preference = DetectDeliveryPreference(searchText);
 
         var normalizedSearchText = NormalizeDeliverySearchText(searchText);
         var primaryMatches = await documentLogic
@@ -47,12 +56,13 @@ public sealed class DocumentAgentTools
 
         if (primaryMatches.Count > 0)
         {
-            return primaryMatches;
+            return ApplyPreferenceOrder(primaryMatches, preference);
         }
 
-        return await documentLogic
+        var fallbackMatches = await documentLogic
             .GetDocumentMatchesBySimilarityAsync(normalizedSearchText, fallbackMinScore, topCount, cancellationToken)
             .ConfigureAwait(false);
+        return ApplyPreferenceOrder(fallbackMatches, preference);
     }
 
     [Description("Builds a secure document download URL for a document id using current chat context.")]
@@ -77,6 +87,15 @@ public sealed class DocumentAgentTools
             .ConfigureAwait(false);
     }
 
+    [Description("Formats a draft DocumentAgent reply into a clean, structured, readable response. Call this before sending the final user-facing reply.")]
+    public string FormatDocumentAgentReply(
+        [Description("Draft reply text to format for final response.")] string draftReply)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var commonLogic = scope.ServiceProvider.GetRequiredService<ICommonLogic>();
+        return commonLogic.FormatAgentReply(draftReply);
+    }
+
     private static string NormalizeDeliverySearchText(string? searchText)
     {
         if (string.IsNullOrWhiteSpace(searchText))
@@ -86,14 +105,66 @@ public sealed class DocumentAgentTools
 
         var normalized = searchText.Trim();
         normalized = Regex.Replace(normalized, @"\bletest\b", "latest", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        normalized = Regex.Replace(normalized, @"\blatset\b", "latest", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        normalized = Regex.Replace(normalized, @"\blattest\b", "latest", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        normalized = Regex.Replace(normalized, @"\boldset\b", "oldest", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        normalized = Regex.Replace(normalized, @"\boldst\b", "oldest", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         normalized = Regex.Replace(
             normalized,
             @"\b(share|send|mail|email|over|document|doc|me|please)\b",
             " ",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-        normalized = Regex.Replace(normalized, @"\blatest\b", " ", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        normalized = Regex.Replace(
+            normalized,
+            @"\b(latest|newest|recent|oldest|earliest|old)\b",
+            " ",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         normalized = Regex.Replace(normalized, @"\s+", " ", RegexOptions.CultureInvariant).Trim();
 
         return string.IsNullOrWhiteSpace(normalized) ? searchText.Trim() : normalized;
+    }
+
+    private static DeliveryPreference DetectDeliveryPreference(string? searchText)
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            return DeliveryPreference.None;
+        }
+
+        var normalized = searchText.Trim();
+        normalized = Regex.Replace(normalized, @"\bletest\b|\blatset\b|\blattest\b", "latest", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        normalized = Regex.Replace(normalized, @"\boldset\b|\boldst\b", "oldest", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        if (Regex.IsMatch(normalized, @"\b(latest|newest|recent)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            return DeliveryPreference.Latest;
+        }
+
+        if (Regex.IsMatch(normalized, @"\b(oldest|earliest|old)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            return DeliveryPreference.Oldest;
+        }
+
+        return DeliveryPreference.None;
+    }
+
+    private static IReadOnlyList<DocumentSimilarityMatchDto> ApplyPreferenceOrder(
+        IReadOnlyList<DocumentSimilarityMatchDto> matches,
+        DeliveryPreference preference)
+    {
+        if (matches.Count <= 1 || preference == DeliveryPreference.None)
+        {
+            return matches;
+        }
+
+        return preference == DeliveryPreference.Latest
+            ? matches
+                .OrderByDescending(match => match.CreatedDate ?? DateTime.MinValue)
+                .ThenByDescending(match => match.DocumentId)
+                .ToList()
+            : matches
+                .OrderBy(match => match.CreatedDate ?? DateTime.MaxValue)
+                .ThenBy(match => match.DocumentId)
+                .ToList();
     }
 }

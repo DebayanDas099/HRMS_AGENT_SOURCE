@@ -120,6 +120,7 @@ internal static class DocumentAdapter
             Path = Convert.ToString(row["dm_path"]) ?? string.Empty,
             Active = Convert.ToString(row["dm_active"]) ?? "N",
             IngestionStatus = ReadOptionalString(row, "dm_ingestion_status") ?? "Pending",
+            CreatedDate = ReadOptionalDateTime(row, "dm_created_date"),
             SimilarityScore = row.Table.Columns.Contains("similarity_score")
                 ? ToInt(row["similarity_score"])
                 : 0
