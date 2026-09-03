@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using HRMS_CHATBOT_SOURCE.Agent.Notifications;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Logic;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,11 +26,16 @@ public sealed class LeaveApplicationTools
     private const string DateFormat = "yyyy-MM-dd";
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IAdminLeaveNotifier _adminLeaveNotifier;
     private readonly ILogger<LeaveApplicationTools> _logger;
 
-    public LeaveApplicationTools(IServiceScopeFactory scopeFactory, ILogger<LeaveApplicationTools> logger)
+    public LeaveApplicationTools(
+        IServiceScopeFactory scopeFactory,
+        IAdminLeaveNotifier adminLeaveNotifier,
+        ILogger<LeaveApplicationTools> logger)
     {
         _scopeFactory = scopeFactory;
+        _adminLeaveNotifier = adminLeaveNotifier;
         _logger = logger;
     }
 
@@ -92,7 +98,7 @@ public sealed class LeaveApplicationTools
             using var scope = _scopeFactory.CreateScope();
             var leaveLogic = scope.ServiceProvider.GetRequiredService<ILeaveLogic>();
 
-            return await leaveLogic
+            var result = await leaveLogic
                 .ValidateAndApplyLeaveAsync(
                     mobile,
                     ParseRequiredDate(fromDate),
@@ -101,6 +107,13 @@ public sealed class LeaveApplicationTools
                     reason,
                     cancellationToken)
                 .ConfigureAwait(false);
+
+            // Fire-and-forget by design: the chat turn should not wait on the admin
+            // notification. NotifyAppliedAsync resolves its own storage scope and
+            // catches/logs internally, so it is safe to outlive this scope.
+            _ = _adminLeaveNotifier.NotifyAppliedAsync(applicationReference: null, mobile, employeeName: null, CancellationToken.None);
+
+            return result;
         }
         catch (ValidationException ex)
         {

@@ -32,6 +32,33 @@ internal static class LeaveAdapter
         };
     }
 
+    internal static List<PendingLeaveApplicationDto> MapPendingApplications(MSSQLResponse? response)
+    {
+        EnsureSuccess(response);
+
+        if (response?.Data is not DataSet { Tables.Count: > 0 } dataSet)
+        {
+            return [];
+        }
+
+        var rows = new List<PendingLeaveApplicationDto>();
+        foreach (DataRow row in dataSet.Tables[0].Rows)
+        {
+            rows.Add(new PendingLeaveApplicationDto
+            {
+                ApplicationReference = ReadOptionalString(row, "application_reference") ?? string.Empty,
+                Mobile = ReadOptionalString(row, "mobile") ?? string.Empty,
+                EmployeeName = ReadOptionalString(row, "employee_name"),
+                FromDate = ReadOptionalDateTime(row, "from_date") ?? default,
+                ToDate = ReadOptionalDateTime(row, "to_date") ?? default,
+                Reason = ReadOptionalString(row, "reason"),
+                AppliedOn = ReadOptionalDateTime(row, "applied_on") ?? default
+            });
+        }
+
+        return rows;
+    }
+
     internal static string MapApplyResult(MSSQLResponse? response)
     {
         EnsureSuccess(response);

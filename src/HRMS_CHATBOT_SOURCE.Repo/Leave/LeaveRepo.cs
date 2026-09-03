@@ -137,6 +137,87 @@ public class LeaveRepo : ILeaveRepo
         };
     }
 
+    public async Task<MSSQLResponse?> GetPendingLeaveApplicationsAsync(CancellationToken cancellationToken = default)
+    {
+        var sqlParams = new List<SqlParameter>();
+        sqlParams.AddRange(CreateOutputParams());
+
+        return new MSSQLResponse
+        {
+            Data = await _sqlHelper.FetchData(new ExecuteDataSetRequest
+            {
+                CommandText = "[dbo].[Get_Pending_Leave_Applications]",
+                CommandTimeout = SqlCommon.SQLCommandTimeOut,
+                CommandType = CommandType.StoredProcedure,
+                ConnectionProperties = _serviceContext.SQLConnectionModel,
+                IsMultipleTables = true,
+                Parameters = sqlParams.ToArray()
+            }),
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+    }
+
+    public async Task<MSSQLResponse?> UpdateLeaveApplicationStatusAsync(
+        string applicationReference,
+        string newStatus,
+        string approvedBy,
+        string? note,
+        CancellationToken cancellationToken = default)
+    {
+        var sqlParams = new List<SqlParameter>
+        {
+            new()
+            {
+                ParameterName = "@application_reference",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 50,
+                Value = Utils.IIFStringOrDBNull(applicationReference)
+            },
+            new()
+            {
+                ParameterName = "@new_status",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 20,
+                Value = Utils.IIFStringOrDBNull(newStatus)
+            },
+            new()
+            {
+                ParameterName = "@approved_by",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = 100,
+                Value = Utils.IIFStringOrDBNull(approvedBy)
+            },
+            new()
+            {
+                ParameterName = "@note",
+                DbType = DbType.String,
+                Direction = ParameterDirection.Input,
+                Size = -1,
+                Value = Utils.IIFStringOrDBNull(note)
+            }
+        };
+
+        sqlParams.AddRange(CreateOutputParams());
+
+        var rowsAffected = await _sqlHelper.ExecuteNonQuery(new ExecuteNonQueryRequest
+        {
+            CommandText = "[dbo].[Update_Leave_Application_Status]",
+            CommandTimeout = SqlCommon.SQLCommandTimeOut,
+            CommandType = CommandType.StoredProcedure,
+            ConnectionProperties = _serviceContext.SQLConnectionModel,
+            Parameters = sqlParams.ToArray()
+        });
+
+        return new MSSQLResponse
+        {
+            RowsAffected = rowsAffected,
+            OutputParameters = sqlParams.Where(p => p.Direction == ParameterDirection.Output).ToArray()
+        };
+    }
+
     public async Task<MSSQLResponse?> GetHolidayListAsync(
         DateTime startDate,
         DateTime endDate,

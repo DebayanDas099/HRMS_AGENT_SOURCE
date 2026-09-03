@@ -57,6 +57,8 @@ public class SupervisorSkillComposerTests
             null!,
             null!,
             null!,
+            null!,
+            null!,
             NullLogger<HrmsChatRuntime>.Instance);
         var commonLogic = new CommonLogic();
         var turnMessages = runtime.ApplyCurrentAccessOverride(

@@ -4,6 +4,8 @@ using HRMS_CHATBOT_SOURCE.Domain.Dto.Request;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
 using HRMS_CHATBOT_SOURCE.Infrastructure.Core;
+using HRMS_CHATBOT_SOURCE.Logic.Adapter;
+using HRMS_CHATBOT_SOURCE.Repo.Admin;
 using Microsoft.Extensions.Logging;
 
 namespace HRMS_CHATBOT_SOURCE.Logic;
@@ -21,17 +23,20 @@ public class ChatLogic : IChatLogic
 
     private readonly IAgentAccessService _agentAccessService;
     private readonly IHrmsChatRuntime _chatRuntime;
+    private readonly IUserProfileRepo _userProfileRepo;
     private readonly IServiceContext _serviceContext;
     private readonly ILogger<ChatLogic> _logger;
 
     public ChatLogic(
         IAgentAccessService agentAccessService,
         IHrmsChatRuntime chatRuntime,
+        IUserProfileRepo userProfileRepo,
         IServiceContext serviceContext,
         ILogger<ChatLogic> logger)
     {
         _agentAccessService = agentAccessService;
         _chatRuntime = chatRuntime;
+        _userProfileRepo = userProfileRepo;
         _serviceContext = serviceContext;
         _logger = logger;
     }
@@ -86,5 +91,18 @@ public class ChatLogic : IChatLogic
         return await _chatRuntime
             .RunAsync(enabledAgents, request.ConversationId, request.Message, mobile, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    public async Task<ActiveMobileNumbersResponse> GetActiveMobileNumbersAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var dbResponse = await _userProfileRepo
+            .GetActiveMobileNumbersAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new ActiveMobileNumbersResponse
+        {
+            MobileNumbers = UserProfileAdapter.MapActiveMobileNumbers(dbResponse)
+        };
     }
 }

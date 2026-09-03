@@ -68,6 +68,7 @@
     cards.forEach(function (card) { observer.observe(card); });
 
     hydrateTopbarUser();
+    void hydrateNotificationBell();
 
     const currentPath = window.location.pathname.toLowerCase().replace(/\/$/, '');
     document.querySelectorAll('.sidebar-nav .nav-item').forEach(function (link) {
@@ -77,6 +78,25 @@
         }
     });
 })();
+
+async function hydrateNotificationBell() {
+    const dot = document.getElementById('notifDot');
+    if (!dot) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/Admin/Approvals/PendingCount', { headers: { Accept: 'application/json' } });
+        if (!response.ok) {
+            return;
+        }
+
+        const count = await response.json();
+        dot.hidden = !(Number(count) > 0);
+    } catch (_) {
+        /* the bell just stays as-is if this check fails */
+    }
+}
 
 function hydrateTopbarUser() {
     const nameEl = document.getElementById('topbarUserName');

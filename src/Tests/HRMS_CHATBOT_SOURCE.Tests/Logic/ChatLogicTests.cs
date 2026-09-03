@@ -2,8 +2,10 @@ using System.ComponentModel.DataAnnotations;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Request;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
+using HRMS_CHATBOT_SOURCE.Domain.Models;
 using HRMS_CHATBOT_SOURCE.Infrastructure.Core;
 using HRMS_CHATBOT_SOURCE.Logic;
+using HRMS_CHATBOT_SOURCE.Repo.Admin;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HRMS_CHATBOT_SOURCE.Tests.Logic;
@@ -124,8 +126,26 @@ public class ChatLogicTests
         var access = new SpyAgentAccessService(enabledAgents);
         var runtime = new SpyChatRuntime();
         var serviceContext = new FakeServiceContext { CurrentUser = currentUser };
-        var chatLogic = new ChatLogic(access, runtime, serviceContext, NullLogger<ChatLogic>.Instance);
+        var chatLogic = new ChatLogic(access, runtime, new StubUserProfileRepo(), serviceContext, NullLogger<ChatLogic>.Instance);
         return (chatLogic, access, runtime);
+    }
+
+    private sealed class StubUserProfileRepo : IUserProfileRepo
+    {
+        public Task<MSSQLResponse?> ValidateAdminLoginAsync(LoginRequest? request, CancellationToken cancellationToken = default)
+            => Task.FromResult<MSSQLResponse?>(null);
+
+        public Task<MSSQLResponse?> UpdateLastAccessedAsync(string? userId, CancellationToken cancellationToken = default)
+            => Task.FromResult<MSSQLResponse?>(null);
+
+        public Task<MSSQLResponse?> GetActiveMobileNumbersAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<MSSQLResponse?>(null);
+
+        public Task<string?> GetUserMobileByUserIdAsync(string? userId, CancellationToken cancellationToken = default)
+            => Task.FromResult<string?>(null);
+
+        public Task<string?> GetUserEmailByMobileAsync(string? mobile, CancellationToken cancellationToken = default)
+            => Task.FromResult<string?>(null);
     }
 
     private sealed class FakeServiceContext : IServiceContext
