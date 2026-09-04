@@ -6,6 +6,7 @@ using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Settings;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
 using HRMS_CHATBOT_SOURCE.Infrastructure.Core;
+using HRMS_CHATBOT_SOURCE.Infrastructure.Security;
 using HRMS_CHATBOT_SOURCE.Logic.Adapter;
 using HRMS_CHATBOT_SOURCE.Repo.Admin;
 using Microsoft.AspNetCore.Http;
@@ -207,10 +208,26 @@ public class ChatLogic : IChatLogic
             .GetWorkflowAgentNamesAsync(mobile, cancellationToken)
             .ConfigureAwait(false)).ToList();
 
+        // LeaveApprovalAgent is never granted by GetWorkflowAgentNamesAsync (group-based,
+        // driven by the client-supplied mobile) - it is added here, and only here, when
+        // both of these hold:
+        //   1. _serviceContext.CurrentUser says IsAdmin=Y - JwtValidationMiddleware
+        //      populates this by cryptographically validating the request's token.
+        //   2. That token was presented via an explicit header (HasExplicitHeaderToken),
+        //      not merely the ambient hrms_admin_token cookie.
+        // (2) matters because the admin cookie is Path=/ and browser-attached to every
+        // same-origin request automatically - including a fetch() from the public,
+        // anonymous /chat page, if the same browser also happens to be logged into
+        // /Admin in another tab. Without this check, that employee-facing page would
+        // silently gain an admin-only capability it never asked for. The Conversations
+        // test-chat panel deliberately attaches its admin token via header
+        // (admin-auth.js's getAuthHeaders()), so it is unaffected by this extra check.
         var isVerifiedAdmin = string.Equals(
             _serviceContext.CurrentUser?.IsAdmin,
             "Y",
-            StringComparison.OrdinalIgnoreCase);
+            StringComparison.OrdinalIgnoreCase)
+            && _serviceContext.RequestContext is not null
+            && JwtTokenValidator.HasExplicitHeaderToken(_serviceContext.RequestContext);
 
         if (isVerifiedAdmin && !enabledAgents.Contains(AgentNames.LeaveApproval, StringComparer.OrdinalIgnoreCase))
         {

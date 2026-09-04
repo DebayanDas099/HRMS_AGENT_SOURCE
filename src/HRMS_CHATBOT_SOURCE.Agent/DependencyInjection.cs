@@ -31,8 +31,17 @@ public static class DependencyInjection
         // Key Vault secret. FailOpen is set explicitly rather than trusting the package default:
         // a check that cannot run must block, not silently let content through.
         services.AddMccGuardrails(GuardrailCategory.Recommended, options =>
+
         {
+
             options.FailOpen = false;
+
+            options.LocalPromptInjection.DetectionMode = MlNetDetectionMode.BuiltIn;
+
+            options.LocalContentSafety.DetectionMode = MlNetDetectionMode.BuiltIn;
+
+            options.MlNetSlang.DetectionMode = MlNetDetectionMode.BuiltIn;
+
         });
 
         // Cosmos when configured, in-memory otherwise. Both AddAzureCosmosService
