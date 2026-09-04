@@ -531,11 +531,6 @@ html, body {
 
 .wa-send-btn svg { width: 22px; height: 22px; fill: currentColor; }
 
-/* mic shown when idle, send arrow when there is text (JS toggles .active) */
-.wa-send-btn .wa-ic-send { display: none; }
-.wa-send-btn.active .wa-ic-send { display: block; }
-.wa-send-btn.active .wa-ic-mic { display: none; }
-
 .wa-send-btn.active { background: var(--wa-green-dark); color: #ffffff; }
 
 .wa-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }

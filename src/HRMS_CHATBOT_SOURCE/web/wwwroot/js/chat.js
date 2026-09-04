@@ -125,6 +125,7 @@
         voiceDisabledMessage: VOICE_DISABLED_MESSAGE,
         isRecording: false,
         isTranscribing: false,
+        isSending: false,
         recorder: null
     };
 
@@ -292,6 +293,14 @@
         }
     }
 
+    function updateSendButtonState() {
+        if (!els.sendBtn) return;
+
+        var hasText = els.input.value.trim().length > 0;
+        els.sendBtn.classList.toggle("active", hasText);
+        els.sendBtn.disabled = state.isSending || state.isTranscribing || !hasText;
+    }
+
     function updateMicButtonState() {
         if (!els.micBtn) return;
 
@@ -299,8 +308,7 @@
         els.micBtn.classList.toggle("wa-mic-transcribing", state.isTranscribing);
         els.micBtn.classList.toggle("wa-mic-disabled", !state.voiceEnabled);
 
-        var sending = els.sendBtn && els.sendBtn.disabled;
-        var blocked = !state.voiceEnabled || sending || state.isTranscribing;
+        var blocked = !state.voiceEnabled || state.isSending || state.isTranscribing;
 
         els.micBtn.disabled = blocked && !state.isRecording;
         els.micBtn.title = state.voiceEnabled
@@ -385,12 +393,8 @@
     function nextId() { return "m" + (++msgCounter); }
 
     function setSending(isSending) {
-        els.sendBtn.disabled = isSending;
-        if (!isSending) {
-            els.sendBtn.classList.toggle("active", els.input.value.trim().length > 0);
-        } else {
-            els.sendBtn.classList.remove("active");
-        }
+        state.isSending = isSending;
+        updateSendButtonState();
         updateMicButtonState();
     }
 
@@ -484,7 +488,7 @@
 
         els.input.value = "";
         autosizeInput();
-        els.sendBtn.classList.remove("active");
+        updateSendButtonState();
 
         sendChatTurn(mobile, text);
     }
@@ -605,7 +609,7 @@
     }
 
     function toggleVoiceRecording() {
-        if (!state.voiceEnabled || state.isTranscribing || els.sendBtn.disabled) {
+        if (!state.voiceEnabled || state.isTranscribing || state.isSending) {
             return;
         }
 
@@ -637,11 +641,13 @@
 
         var wavBlob = recorder.stop();
         if (!wavBlob || wavBlob.size <= 44) {
+            updateSendButtonState();
             updateMicButtonState();
             return;
         }
 
         state.isTranscribing = true;
+        updateSendButtonState();
         updateMicButtonState();
 
         if (state.sendAbort) state.sendAbort.abort();
@@ -669,6 +675,7 @@
             })
             .finally(function () {
                 state.isTranscribing = false;
+                updateSendButtonState();
                 updateMicButtonState();
             });
     }
@@ -695,7 +702,7 @@
 
     els.input.addEventListener("input", function () {
         autosizeInput();
-        els.sendBtn.classList.toggle("active", els.input.value.trim().length > 0);
+        updateSendButtonState();
     });
 
     els.input.addEventListener("keydown", function (e) {
@@ -705,6 +712,7 @@
         }
     });
 
+    updateSendButtonState();
     updateMicButtonState();
     loadMobileNumbers();
 }());
