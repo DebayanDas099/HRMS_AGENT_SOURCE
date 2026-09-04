@@ -84,14 +84,17 @@ public sealed class LeaveApplicationTools
     [Description(
         "Validates and submits a leave application for the employee's registered mobile number. "
         + "Requires from date, to date, leave type, and reason - collect all four from the employee "
-        + "before calling. Leave type examples: casual, sick, earned, loss of pay. Ask for the "
-        + "registered mobile number only when it is not already known from the session context.")]
+        + "before calling. Reason is mandatory for every leave type including sick. If the employee "
+        + "has not stated a reason in this conversation, ask for one before calling. Never pass "
+        + "placeholder or assumed reasons (for example do not use 'not feeling well' unless they said it). "
+        + "Leave type examples: casual, sick, earned, loss of pay. Ask for the registered mobile number "
+        + "only when it is not already known from the session context.")]
     public async Task<string> ValidateAndApplyLeaveAsync(
         [Description("The employee's registered mobile number.")] string mobile,
         [Description("Leave start date (yyyy-MM-dd). Required.")] string fromDate,
         [Description("Leave end date (yyyy-MM-dd). Required.")] string toDate,
         [Description("Leave type (e.g. casual, sick, earned, loss of pay). Required.")] string leaveType,
-        [Description("Reason for the leave request. Required.")] string reason,
+        [Description("Reason for the leave request in the employee's own words. Required for all leave types; do not invent.")] string reason,
         CancellationToken cancellationToken = default)
     {
         try
