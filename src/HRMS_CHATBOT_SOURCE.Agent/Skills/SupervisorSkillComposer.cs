@@ -67,6 +67,11 @@ public static class SupervisorSkillComposer
         builder.AppendLine("- Available and Unavailable skills in these instructions are the source of truth for this turn.");
         builder.AppendLine("- If earlier assistant messages said a feature was not enabled, ignore that when the agent is listed under Available skills now. Hand off using the current list.");
         builder.AppendLine("- Hand off only to agents listed under Available skills.");
+        if (available.Contains(AgentNames.Document, StringComparer.OrdinalIgnoreCase))
+        {
+            builder.AppendLine("- For document delivery intents (download link, share by email, send over mail, send document), always hand off to DocumentAgent.");
+            builder.AppendLine("- Do not ask the user for email address/mobile for document delivery when DocumentAgent is available.");
+        }
         builder.AppendLine("- If the user request matches an Unavailable skill, do not hand off and do not perform that action.");
         builder.AppendLine("- Tell the user that capability is not enabled for their account based on the skills available to them, then list Available skills.");
         if (unavailable.Contains(AgentNames.LeaveApplication, StringComparer.OrdinalIgnoreCase))

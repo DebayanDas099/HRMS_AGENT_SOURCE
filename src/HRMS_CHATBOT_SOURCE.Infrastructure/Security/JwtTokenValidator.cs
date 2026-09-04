@@ -111,6 +111,32 @@ public sealed class JwtTokenValidator
         return null;
     }
 
+    /// <summary>
+    /// True only if this specific request explicitly carried a token via a header
+    /// (the custom "hrms_admin_token" header or "Authorization") - excludes the
+    /// cookie fallback in ReadRawToken.
+    /// <para>
+    /// The admin cookie is set with Path=/, so the browser attaches it to every
+    /// same-origin request automatically, including a fetch() from a page that never
+    /// asked for it - e.g. the public, anonymous /chat page, if the same browser is
+    /// also logged into /Admin. A caller that wants to prove "this specific request
+    /// deliberately identifies as an admin" (as opposed to "this browser happens to
+    /// hold an admin cookie for an unrelated reason") should check this, not just
+    /// HttpContext.User.IsAuthenticated - see ChatLogic.SendMessageAsync.
+    /// </para>
+    /// </summary>
+    public static bool HasExplicitHeaderToken(HttpContext context)
+    {
+        if (context.Request.Headers.TryGetValue("hrms_admin_token", out var headerToken)
+            && !string.IsNullOrWhiteSpace(headerToken))
+        {
+            return true;
+        }
+
+        return context.Request.Headers.TryGetValue("Authorization", out var authorization)
+            && !string.IsNullOrWhiteSpace(authorization);
+    }
+
     private static RsaSecurityKey CreateValidationKey(string? adminPrivate)
     {
         if (string.IsNullOrWhiteSpace(adminPrivate))

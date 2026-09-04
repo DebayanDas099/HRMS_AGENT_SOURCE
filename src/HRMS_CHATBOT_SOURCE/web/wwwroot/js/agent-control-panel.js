@@ -50,7 +50,8 @@
         LeaveApplicationAgent: 'ph:calendar-check-duotone',
         DocumentAgent: 'ph:folder-open-duotone',
         KnowledgeAgent: 'ph:book-open-duotone',
-        CriticAgent: 'ph:shield-check-duotone'
+        CriticAgent: 'ph:shield-check-duotone',
+        VoiceInputAgent: 'ph:microphone-duotone'
     };
 
     let groups = [];
@@ -221,7 +222,9 @@
             const canToggle = String(agent.can_toggle || '').toUpperCase() === 'Y';
             const roleClass = (agent.role || 'Specialist').toLowerCase();
             const icon = agentIcons[agent.am_name] || 'ph:robot-duotone';
-            const note = isLocked ? 'Always on — click name to assign groups' : 'Click name to assign user groups';
+            const note = agent.am_name === 'VoiceInputAgent'
+                ? 'Voice input for chat — assign per user group.'
+                : (isLocked ? 'Always on — click name to assign groups' : 'Click name to assign user groups');
 
             return `
                 <tr data-model-row data-agent-id="${agent.am_id}">

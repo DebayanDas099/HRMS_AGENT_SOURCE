@@ -1,16 +1,9 @@
 (function () {
     "use strict";
 
-    // ---------------------------------------------------------------
-    // API services — thin wrappers around the existing Chat endpoints.
-    // ---------------------------------------------------------------
+    var VOICE_DISABLED_MESSAGE = "Voice feature is disabled for you.";
 
     var MobileDirectoryApiService = {
-        /**
-         * Populates the top-left dropdown. Backed by GET api/GetActiveMobileNumbersAsync,
-         * which reads dbo.usp_GetActiveMobileNumbers (active user_profile rows) —
-         * no hardcoded numbers.
-         */
         getActiveMobileNumbers: function (signal) {
             return fetch("api/GetActiveMobileNumbersAsync", { method: "GET", signal: signal })
                 .then(function (response) {
@@ -22,19 +15,46 @@
         }
     };
 
+    var VoiceApiService = {
+        getVoiceInputEnabled: function (mobile, signal) {
+            var url = "api/GetVoiceInputEnabledAsync?mobile=" + encodeURIComponent(mobile);
+            return fetch(url, { method: "GET", signal: signal })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("HTTP " + response.status);
+                    }
+                    return response.json();
+                });
+        },
+
+        transcribeVoice: function (mobile, wavBlob, signal) {
+            var formData = new FormData();
+            formData.append("mobile", mobile);
+            formData.append("audio", wavBlob, "voice.wav");
+
+            return fetch("api/TranscribeVoiceAsync", {
+                method: "POST",
+                signal: signal,
+                body: formData
+            }).then(function (response) {
+                return response.json().then(function (data) {
+                    if (!response.ok) {
+                        throw new Error(data.error_message || data.message || "Transcription failed.");
+                    }
+                    return data;
+                });
+            });
+        }
+    };
+
     var ChatApiService = {
-        /**
-         * Wraps the existing ChatStreamAsync endpoint (POST api/ChatStreamAsync).
-         * Despite its name, the current backend returns one complete
-         * ChatTurnResponse (not chunked/IAsyncEnumerable) — so this resolves once
-         * with the full reply rather than yielding partial tokens. The UI still
-         * renders it into a single progressively-updated bubble so it is a
-         * drop-in replacement the day the backend starts truly streaming.
-         */
-        sendMessage: function (mobile, message, conversationId, signal) {
+        sendMessage: function (mobile, message, conversationId, signal, onDelta) {
             return fetch("api/ChatStreamAsync", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/x-ndjson"
+                },
                 signal: signal,
                 body: JSON.stringify({
                     mobile: mobile,
@@ -43,30 +63,71 @@
                 })
             }).then(function (response) {
                 if (!response.ok) {
-                    throw new Error("HTTP " + response.status);
+                    return response.text().then(function (text) {
+                        var errMsg = "HTTP " + response.status;
+                        try {
+                            var parsed = JSON.parse(text);
+                            errMsg = parsed.error_message || parsed.message || errMsg;
+                        } catch (e) { /* ignore */ }
+                        throw new Error(errMsg);
+                    });
                 }
-                return response.json();
+
+                if (!response.body || !response.body.getReader) {
+                    throw new Error("Streaming is not supported in this browser.");
+                }
+
+                var reader = response.body.getReader();
+                var decoder = new TextDecoder();
+                var buffer = "";
+                var finalData = null;
+
+                function pump() {
+                    return reader.read().then(function (result) {
+                        if (result.done) {
+                            return finalData;
+                        }
+
+                        buffer += decoder.decode(result.value, { stream: true });
+                        var lines = buffer.split("\n");
+                        buffer = lines.pop() || "";
+
+                        lines.forEach(function (line) {
+                            if (!line.trim()) return;
+                            var chunk = JSON.parse(line);
+                            if (chunk.type === "delta" && chunk.text && onDelta) {
+                                onDelta(chunk.text);
+                            } else if (chunk.type === "done") {
+                                finalData = chunk;
+                            } else if (chunk.type === "error") {
+                                throw new Error(chunk.message || "Chat stream failed.");
+                            }
+                        });
+
+                        return pump();
+                    });
+                }
+
+                return pump();
             });
         }
     };
 
-    // ---------------------------------------------------------------
-    // State
-    // ---------------------------------------------------------------
-
     var state = {
         mobileNumbers: [],
-        selectedMobile: null,   // dropdown value, before Start Chat is clicked
-        activeConversation: null, // mobile number of the currently open conversation row
-        conversations: {},      // mobile -> { conversationId, messages: [] }
-        conversationOrder: [],  // mobile numbers, most-recently-active first
+        selectedMobile: null,
+        activeConversation: null,
+        conversations: {},
+        conversationOrder: [],
         loadAbort: null,
-        sendAbort: null
+        sendAbort: null,
+        voiceEnabled: false,
+        voiceDisabledMessage: VOICE_DISABLED_MESSAGE,
+        isRecording: false,
+        isTranscribing: false,
+        isSending: false,
+        recorder: null
     };
-
-    // ---------------------------------------------------------------
-    // Elements
-    // ---------------------------------------------------------------
 
     var els = {
         mobileSelect: document.getElementById("waMobileSelect"),
@@ -81,7 +142,8 @@
         activeStatus: document.getElementById("waActiveStatus"),
         messages: document.getElementById("waMessages"),
         input: document.getElementById("waInput"),
-        sendBtn: document.getElementById("waSendBtn")
+        sendBtn: document.getElementById("waSendBtn"),
+        micBtn: document.getElementById("waMicBtn")
     };
 
     function initials(name) {
@@ -97,10 +159,6 @@
         div.textContent = text;
         return div.innerHTML;
     }
-
-    // ---------------------------------------------------------------
-    // Mobile number dropdown (Step 1-3)
-    // ---------------------------------------------------------------
 
     function loadMobileNumbers() {
         els.mobileSelect.disabled = true;
@@ -158,10 +216,6 @@
             openConversation(state.selectedMobile);
         }
     }
-
-    // ---------------------------------------------------------------
-    // Conversation rows (Step 4) — created ONLY by Start Chat
-    // ---------------------------------------------------------------
 
     function conversationFor(mobile) {
         if (!state.conversations[mobile]) {
@@ -239,9 +293,48 @@
         }
     }
 
-    // ---------------------------------------------------------------
-    // Chat panel (Step 5-7)
-    // ---------------------------------------------------------------
+    function updateSendButtonState() {
+        if (!els.sendBtn) return;
+
+        var hasText = els.input.value.trim().length > 0;
+        els.sendBtn.classList.toggle("active", hasText);
+        els.sendBtn.disabled = state.isSending || state.isTranscribing || !hasText;
+    }
+
+    function updateMicButtonState() {
+        if (!els.micBtn) return;
+
+        els.micBtn.classList.toggle("wa-mic-recording", state.isRecording);
+        els.micBtn.classList.toggle("wa-mic-transcribing", state.isTranscribing);
+        els.micBtn.classList.toggle("wa-mic-disabled", !state.voiceEnabled);
+
+        var blocked = !state.voiceEnabled || state.isSending || state.isTranscribing;
+
+        els.micBtn.disabled = blocked && !state.isRecording;
+        els.micBtn.title = state.voiceEnabled
+            ? (state.isRecording ? "Tap to stop recording" : "Tap to record voice message")
+            : state.voiceDisabledMessage;
+    }
+
+    function refreshVoiceAccess(mobile) {
+        if (!mobile) {
+            state.voiceEnabled = false;
+            updateMicButtonState();
+            return Promise.resolve();
+        }
+
+        return VoiceApiService.getVoiceInputEnabled(mobile)
+            .then(function (data) {
+                state.voiceEnabled = !!(data && data.voice_enabled);
+                state.voiceDisabledMessage = (data && data.disabled_message) || VOICE_DISABLED_MESSAGE;
+                updateMicButtonState();
+            })
+            .catch(function () {
+                state.voiceEnabled = false;
+                state.voiceDisabledMessage = VOICE_DISABLED_MESSAGE;
+                updateMicButtonState();
+            });
+    }
 
     function openConversation(mobile) {
         state.activeConversation = mobile;
@@ -254,6 +347,7 @@
         els.activeStatus.textContent = "online";
 
         renderMessages();
+        refreshVoiceAccess(mobile);
         els.input.focus();
     }
 
@@ -299,19 +393,30 @@
     function nextId() { return "m" + (++msgCounter); }
 
     function setSending(isSending) {
-        els.sendBtn.disabled = isSending;
-        if (!isSending) {
-            els.sendBtn.classList.toggle("active", els.input.value.trim().length > 0);
-        } else {
-            els.sendBtn.classList.remove("active");
-        }
+        state.isSending = isSending;
+        updateSendButtonState();
+        updateMicButtonState();
     }
 
-    function sendMessage() {
-        var text = els.input.value.trim();
-        var mobile = state.activeConversation;
-        if (!text || !mobile) return;
+    function appendToBubble(msg, extraText) {
+        msg.text = (msg.text || "") + extraText;
+        msg.pending = false;
 
+        var bubble = els.messages.querySelector('[data-msg-id="' + msg.id + '"]');
+        if (!bubble) return;
+
+        bubble.innerHTML = "";
+        bubble.appendChild(document.createTextNode(msg.text));
+
+        var meta = document.createElement("span");
+        meta.className = "wa-bubble-meta";
+        meta.textContent = formatTime(msg.time);
+        bubble.appendChild(meta);
+
+        scrollToBottom();
+    }
+
+    function sendChatTurn(mobile, text) {
         var convo = conversationFor(mobile);
 
         var userMsg = { id: nextId(), kind: "out", text: text, time: new Date(), preview: text };
@@ -319,10 +424,6 @@
 
         var pendingMsg = { id: nextId(), kind: "in", text: "", time: new Date(), pending: true };
         convo.messages.push(pendingMsg);
-
-        els.input.value = "";
-        autosizeInput();
-        els.sendBtn.classList.remove("active");
 
         if (state.activeConversation === mobile) {
             appendBubbleElement(userMsg);
@@ -337,11 +438,24 @@
         if (state.sendAbort) state.sendAbort.abort();
         state.sendAbort = new AbortController();
 
-        ChatApiService.sendMessage(mobile, text, convo.conversationId, state.sendAbort.signal)
-            .then(function (data) {
-                convo.conversationId = data.conversation_id || convo.conversationId;
+        return ChatApiService.sendMessage(
+            mobile,
+            text,
+            convo.conversationId,
+            state.sendAbort.signal,
+            function (delta) {
                 pendingMsg.pending = false;
-                pendingMsg.text = data.reply || "(no reply)";
+                if (state.activeConversation === mobile) {
+                    appendToBubble(pendingMsg, delta);
+                } else {
+                    pendingMsg.text = (pendingMsg.text || "") + delta;
+                }
+            }
+        )
+            .then(function (data) {
+                convo.conversationId = (data && data.conversation_id) || convo.conversationId;
+                pendingMsg.pending = false;
+                pendingMsg.text = (data && data.reply) || pendingMsg.text || "(no reply)";
                 pendingMsg.time = new Date();
                 pendingMsg.preview = pendingMsg.text;
 
@@ -354,7 +468,7 @@
                 if (err.name === "AbortError") return;
                 pendingMsg.pending = false;
                 pendingMsg.isError = true;
-                pendingMsg.text = "Message failed to send. Please try again.";
+                pendingMsg.text = err.message || "Message failed to send. Please try again.";
                 pendingMsg.time = new Date();
 
                 if (state.activeConversation === mobile) {
@@ -365,6 +479,18 @@
                 setSending(false);
                 els.input.focus();
             });
+    }
+
+    function sendMessage() {
+        var text = els.input.value.trim();
+        var mobile = state.activeConversation;
+        if (!text || !mobile) return;
+
+        els.input.value = "";
+        autosizeInput();
+        updateSendButtonState();
+
+        sendChatTurn(mobile, text);
     }
 
     function replaceBubble(msg) {
@@ -388,9 +514,171 @@
         els.input.style.height = Math.min(els.input.scrollHeight, 120) + "px";
     }
 
-    // ---------------------------------------------------------------
-    // Wiring
-    // ---------------------------------------------------------------
+    function encodeWav(samples, sampleRate) {
+        var buffer = new ArrayBuffer(44 + samples.length * 2);
+        var view = new DataView(buffer);
+
+        function writeString(offset, str) {
+            for (var i = 0; i < str.length; i++) {
+                view.setUint8(offset + i, str.charCodeAt(i));
+            }
+        }
+
+        writeString(0, "RIFF");
+        view.setUint32(4, 36 + samples.length * 2, true);
+        writeString(8, "WAVE");
+        writeString(12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeString(36, "data");
+        view.setUint32(40, samples.length * 2, true);
+
+        var offset = 44;
+        for (var j = 0; j < samples.length; j++) {
+            var s = Math.max(-1, Math.min(1, samples[j]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+            offset += 2;
+        }
+
+        return new Blob([view], { type: "audio/wav" });
+    }
+
+    function createVoiceRecorder() {
+        var audioContext = null;
+        var mediaStream = null;
+        var processor = null;
+        var source = null;
+        var chunks = [];
+
+        return {
+            start: function () {
+                chunks = [];
+                return navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function (stream) {
+                        mediaStream = stream;
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+                        source = audioContext.createMediaStreamSource(stream);
+                        processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                        processor.onaudioprocess = function (event) {
+                            chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
+                        };
+
+                        source.connect(processor);
+                        processor.connect(audioContext.destination);
+                    });
+            },
+
+            stop: function () {
+                if (processor) {
+                    processor.disconnect();
+                    processor.onaudioprocess = null;
+                }
+                if (source) source.disconnect();
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(function (track) { track.stop(); });
+                }
+
+                var sampleRate = audioContext ? audioContext.sampleRate : 16000;
+                if (audioContext) {
+                    audioContext.close();
+                }
+
+                var totalLength = chunks.reduce(function (sum, chunk) { return sum + chunk.length; }, 0);
+                var samples = new Float32Array(totalLength);
+                var offset = 0;
+                chunks.forEach(function (chunk) {
+                    samples.set(chunk, offset);
+                    offset += chunk.length;
+                });
+
+                mediaStream = null;
+                audioContext = null;
+                processor = null;
+                source = null;
+                chunks = [];
+
+                return encodeWav(samples, sampleRate);
+            }
+        };
+    }
+
+    function toggleVoiceRecording() {
+        if (!state.voiceEnabled || state.isTranscribing || state.isSending) {
+            return;
+        }
+
+        var mobile = state.activeConversation;
+        if (!mobile) return;
+
+        if (!state.isRecording) {
+            state.recorder = createVoiceRecorder();
+            state.recorder.start()
+                .then(function () {
+                    state.isRecording = true;
+                    updateMicButtonState();
+                })
+                .catch(function () {
+                    state.isRecording = false;
+                    state.recorder = null;
+                    updateMicButtonState();
+                    alert("Microphone access is required for voice input.");
+                });
+            return;
+        }
+
+        state.isRecording = false;
+        updateMicButtonState();
+
+        var recorder = state.recorder;
+        state.recorder = null;
+        if (!recorder) return;
+
+        var wavBlob = recorder.stop();
+        if (!wavBlob || wavBlob.size <= 44) {
+            updateSendButtonState();
+            updateMicButtonState();
+            return;
+        }
+
+        state.isTranscribing = true;
+        updateSendButtonState();
+        updateMicButtonState();
+
+        if (state.sendAbort) state.sendAbort.abort();
+        state.sendAbort = new AbortController();
+
+        VoiceApiService.transcribeVoice(mobile, wavBlob, state.sendAbort.signal)
+            .then(function (data) {
+                var englishText = (data && data.english_text) || "";
+                if (!englishText.trim()) {
+                    throw new Error("Could not transcribe the audio.");
+                }
+                return sendChatTurn(mobile, englishText.trim());
+            })
+            .catch(function (err) {
+                if (err.name === "AbortError") return;
+
+                var convo = conversationFor(mobile);
+                var errMsg = { id: nextId(), kind: "out", text: err.message || "Voice transcription failed.", time: new Date(), preview: "Voice failed", isError: true };
+                convo.messages.push(errMsg);
+
+                if (state.activeConversation === mobile) {
+                    appendBubbleElement(errMsg);
+                    scrollToBottom();
+                }
+            })
+            .finally(function () {
+                state.isTranscribing = false;
+                updateSendButtonState();
+                updateMicButtonState();
+            });
+    }
 
     els.mobileSelect.addEventListener("change", onMobileSelectChanged);
     els.refreshBtn.addEventListener("click", loadMobileNumbers);
@@ -405,9 +693,16 @@
         sendMessage();
     });
 
+    if (els.micBtn) {
+        els.micBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            toggleVoiceRecording();
+        });
+    }
+
     els.input.addEventListener("input", function () {
         autosizeInput();
-        els.sendBtn.classList.toggle("active", els.input.value.trim().length > 0);
+        updateSendButtonState();
     });
 
     els.input.addEventListener("keydown", function (e) {
@@ -417,5 +712,7 @@
         }
     });
 
+    updateSendButtonState();
+    updateMicButtonState();
     loadMobileNumbers();
 }());

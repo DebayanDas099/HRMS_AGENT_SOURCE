@@ -25,6 +25,8 @@ public static class AgentInstructionComposer
                         + Environment.NewLine
                         + "- Before submitting leave, confirm leave type (casual, sick, earned, loss of pay) with the user."
                         + Environment.NewLine
+                        + "- Before submitting leave, collect an explicit reason from the user; reason is mandatory for all leave types including sick. Never invent or assume a reason."
+                        + Environment.NewLine
                         + "- Never invent calendar dates."
                         + Environment.NewLine
                         + "- If no date is mentioned, omit date parameters or use the current month."

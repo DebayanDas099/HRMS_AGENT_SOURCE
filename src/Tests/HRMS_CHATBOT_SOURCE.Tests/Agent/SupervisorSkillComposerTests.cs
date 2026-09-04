@@ -195,6 +195,8 @@ public class SupervisorSkillComposerTests
         public RelativeDateParseResult ParseRelativeDateFromUserMessage(string? message, DateTime? referenceDate = null)
             => _result;
 
+        public string FormatAgentReply(string? rawReply) => rawReply ?? string.Empty;
+
         public Task<string?> GetUserEmailByMobileAsync(string? mobile, CancellationToken cancellationToken = default)
             => Task.FromResult<string?>(null);
 

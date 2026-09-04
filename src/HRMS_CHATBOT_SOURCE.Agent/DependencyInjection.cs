@@ -33,6 +33,9 @@ public static class DependencyInjection
         services.AddMccGuardrails(GuardrailCategory.Recommended, options =>
         {
             options.FailOpen = false;
+            options.LocalPromptInjection.DetectionMode = MlNetDetectionMode.BuiltIn;
+            options.LocalContentSafety.DetectionMode = MlNetDetectionMode.BuiltIn;
+            options.MlNetSlang.DetectionMode = MlNetDetectionMode.BuiltIn;
         });
 
         // Cosmos when configured, in-memory otherwise. Both AddAzureCosmosService

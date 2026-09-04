@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hrms-chatbot",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/HRMS_CHATBOT_SOURCE", "--launch-profile", "http"],
+      "port": 5054
+    }
+  ]
+}

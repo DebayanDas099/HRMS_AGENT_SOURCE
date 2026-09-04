@@ -1,12 +1,16 @@
 using System.ComponentModel.DataAnnotations;
+using HRMS_CHATBOT_SOURCE.Domain.Constants;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Request;
 using HRMS_CHATBOT_SOURCE.Domain.Dto.Response;
+using HRMS_CHATBOT_SOURCE.Domain.Dto.Settings;
 using HRMS_CHATBOT_SOURCE.Domain.Interfaces;
 using HRMS_CHATBOT_SOURCE.Domain.Models;
 using HRMS_CHATBOT_SOURCE.Infrastructure.Core;
 using HRMS_CHATBOT_SOURCE.Logic;
 using HRMS_CHATBOT_SOURCE.Repo.Admin;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace HRMS_CHATBOT_SOURCE.Tests.Logic;
 
@@ -88,11 +92,12 @@ public class ChatLogicTests
     }
 
     [Fact]
-    public async Task SendMessageAsync_VerifiedAdmin_AddsLeaveApprovalAgentToTheEnabledList()
+    public async Task SendMessageAsync_VerifiedAdminWithExplicitHeader_AddsLeaveApprovalAgentToTheEnabledList()
     {
         var (chatLogic, _, runtime) = Build(
             enabledAgents: ["SupervisorAgent", "KnowledgeAgent"],
-            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" });
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" },
+            hasExplicitAdminHeader: true);
 
         var response = await chatLogic.SendMessageAsync(Request("9999999999", "hello"));
 
@@ -101,11 +106,31 @@ public class ChatLogicTests
     }
 
     [Fact]
+    public async Task SendMessageAsync_AdminClaimFromCookieOnly_NeverGetsLeaveApprovalAgent()
+    {
+        // Regression test: an admin who is separately logged into /Admin in the same
+        // browser carries an hrms_admin_token cookie on every same-origin request,
+        // including a fetch() from the public, unauthenticated /chat page - which
+        // never explicitly asked for or attached any admin credential. IsAdmin=Y
+        // alone must not be enough; without an explicit header this must stay a
+        // plain employee turn.
+        var (chatLogic, _, runtime) = Build(
+            enabledAgents: ["SupervisorAgent", "KnowledgeAgent"],
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" },
+            hasExplicitAdminHeader: false);
+
+        var response = await chatLogic.SendMessageAsync(Request("9999999999", "hello"));
+
+        Assert.DoesNotContain("LeaveApprovalAgent", response.EnabledAgents, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task SendMessageAsync_NonAdmin_NeverGetsLeaveApprovalAgent()
     {
         var (chatLogic, _, runtime) = Build(
             enabledAgents: ["SupervisorAgent", "KnowledgeAgent"],
-            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "N" });
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "N" },
+            hasExplicitAdminHeader: true);
 
         var response = await chatLogic.SendMessageAsync(Request("9999999999", "hello"));
 
@@ -130,7 +155,8 @@ public class ChatLogicTests
         // access at all - the admin capability must not depend on that.
         var (chatLogic, _, runtime) = Build(
             enabledAgents: [],
-            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" });
+            currentUser: new CurrentUserContext { Mobile = "9999888877", IsAdmin = "Y" },
+            hasExplicitAdminHeader: true);
 
         var response = await chatLogic.SendMessageAsync(Request("0000000000", "list pending approvals"));
 
@@ -175,12 +201,28 @@ public class ChatLogicTests
 
     private static (ChatLogic ChatLogic, SpyAgentAccessService Access, SpyChatRuntime Runtime) Build(
         IReadOnlyList<string> enabledAgents,
-        CurrentUserContext? currentUser = null)
+        CurrentUserContext? currentUser = null,
+        bool hasExplicitAdminHeader = false,
+        bool voiceEnabled = false)
     {
-        var access = new SpyAgentAccessService(enabledAgents);
+        var access = new SpyAgentAccessService(enabledAgents, voiceEnabled);
         var runtime = new SpyChatRuntime();
-        var serviceContext = new FakeServiceContext { CurrentUser = currentUser };
-        var chatLogic = new ChatLogic(access, runtime, new StubUserProfileRepo(), serviceContext, NullLogger<ChatLogic>.Instance);
+
+        var httpContext = new DefaultHttpContext();
+        if (hasExplicitAdminHeader)
+        {
+            httpContext.Request.Headers.Authorization = "Bearer test-token";
+        }
+
+        var serviceContext = new FakeServiceContext { CurrentUser = currentUser, RequestContext = httpContext };
+        var chatLogic = new ChatLogic(
+            access,
+            runtime,
+            new StubUserProfileRepo(),
+            new StubSpeechTranslationService(),
+            serviceContext,
+            Options.Create(new AzureSpeechSettings()),
+            NullLogger<ChatLogic>.Instance);
         return (chatLogic, access, runtime);
     }
 
@@ -219,23 +261,131 @@ public class ChatLogicTests
         public MCC.Foundation.MSSQLHelper.Models.MSSQLConnectionModel SQLConnectionModel { get; } = null!;
     }
 
-    private sealed class SpyAgentAccessService(IReadOnlyList<string> result) : IAgentAccessService
+    [Fact]
+    public async Task SendMessageStreamAsync_NoAgentsEnabled_YieldsAccessDeniedDoneChunk()
+    {
+        var (chatLogic, _, runtime) = Build(enabledAgents: []);
+
+        var chunks = await CollectStream(chatLogic.SendMessageStreamAsync(Request("9999999999", "hello")));
+
+        Assert.Single(chunks);
+        Assert.Equal("done", chunks[0].Type);
+        Assert.Contains("not registered", chunks[0].Reply, StringComparison.OrdinalIgnoreCase);
+        Assert.False(runtime.WasStreamCalled);
+    }
+
+    [Fact]
+    public async Task SendMessageStreamAsync_SomeAgentsEnabled_StreamsFromRuntime()
+    {
+        var (chatLogic, _, runtime) = Build(enabledAgents: ["SupervisorAgent", "KnowledgeAgent"]);
+
+        var chunks = await CollectStream(chatLogic.SendMessageStreamAsync(Request("9999999999", "hello")));
+
+        Assert.True(runtime.WasStreamCalled);
+        Assert.Contains(chunks, c => c.Type == "delta");
+        Assert.Contains(chunks, c => c.Type == "done" && c.Reply == "stub reply");
+    }
+
+    [Fact]
+    public async Task GetVoiceInputEnabledAsync_WhenDisabled_ReturnsDisabledMessage()
+    {
+        var (chatLogic, _, _) = Build(enabledAgents: ["SupervisorAgent"], voiceEnabled: false);
+
+        var response = await chatLogic.GetVoiceInputEnabledAsync("9999999999");
+
+        Assert.False(response.VoiceEnabled);
+        Assert.Equal(VoiceInputEnabledResponse.DefaultDisabledMessage, response.DisabledMessage);
+    }
+
+    [Fact]
+    public async Task GetVoiceInputEnabledAsync_WhenEnabled_ReturnsTrue()
+    {
+        var (chatLogic, _, _) = Build(enabledAgents: ["SupervisorAgent"], voiceEnabled: true);
+
+        var response = await chatLogic.GetVoiceInputEnabledAsync("9999999999");
+
+        Assert.True(response.VoiceEnabled);
+    }
+
+    [Fact]
+    public async Task TranscribeVoiceAsync_WhenVoiceDisabled_Throws()
+    {
+        var (chatLogic, _, _) = Build(enabledAgents: ["SupervisorAgent"], voiceEnabled: false);
+        var file = CreateTestAudioFile();
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(
+            () => chatLogic.TranscribeVoiceAsync("9999999999", file));
+
+        Assert.Equal(VoiceInputEnabledResponse.DefaultDisabledMessage, ex.Message);
+    }
+
+    [Fact]
+    public async Task TranscribeVoiceAsync_WhenVoiceEnabled_ReturnsEnglishText()
+    {
+        var (chatLogic, _, _) = Build(enabledAgents: ["SupervisorAgent"], voiceEnabled: true);
+        var file = CreateTestAudioFile();
+
+        var response = await chatLogic.TranscribeVoiceAsync("9999999999", file);
+
+        Assert.Equal("stub english", response.EnglishText);
+    }
+
+    private static FormFile CreateTestAudioFile()
+    {
+        return new FormFile(new MemoryStream([1, 2, 3]), 0, 3, "audio", "voice.wav")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "audio/wav"
+        };
+    }
+
+    private static async Task<List<ChatStreamChunk>> CollectStream(
+        IAsyncEnumerable<ChatStreamChunk> stream)
+    {
+        var chunks = new List<ChatStreamChunk>();
+        await foreach (var chunk in stream)
+        {
+            chunks.Add(chunk);
+        }
+
+        return chunks;
+    }
+
+    private sealed class StubSpeechTranslationService : ISpeechTranslationService
+    {
+        public Task<VoiceTranscriptionResponse> TranscribeAndTranslateToEnglishAsync(
+            Stream audioStream,
+            string contentType,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new VoiceTranscriptionResponse { EnglishText = "stub english" });
+    }
+
+    private sealed class SpyAgentAccessService(IReadOnlyList<string> result, bool voiceEnabled) : IAgentAccessService
     {
         public bool WasCalled { get; private set; }
         public string? LastMobile { get; private set; }
 
         public Task<IReadOnlyList<string>> GetEnabledAgentNamesAsync(
+            string? mobile, CancellationToken cancellationToken = default) =>
+            GetWorkflowAgentNamesAsync(mobile, cancellationToken);
+
+        public Task<IReadOnlyList<string>> GetWorkflowAgentNamesAsync(
             string? mobile, CancellationToken cancellationToken = default)
         {
             WasCalled = true;
             LastMobile = mobile;
             return Task.FromResult<IReadOnlyList<string>>(result);
         }
+
+        public Task<bool> IsVoiceInputEnabledAsync(
+            string mobile, CancellationToken cancellationToken = default) =>
+            Task.FromResult(voiceEnabled);
     }
 
     private sealed class SpyChatRuntime : IHrmsChatRuntime
     {
         public bool WasCalled { get; private set; }
+        public bool WasStreamCalled { get; private set; }
         public string? AuthenticatedMobile { get; private set; }
 
         public Task<ChatTurnResponse> RunAsync(
@@ -254,6 +404,25 @@ public class ChatLogicTests
                 EnabledAgents = [.. enabledAgentNames],
                 LastSpeaker = "SupervisorAgent"
             });
+        }
+
+        public async IAsyncEnumerable<ChatStreamChunk> RunStreamAsync(
+            IReadOnlyCollection<string> enabledAgentNames,
+            string? conversationId,
+            string message,
+            string? authenticatedMobile = null,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            WasStreamCalled = true;
+            WasCalled = true;
+            AuthenticatedMobile = authenticatedMobile;
+            yield return ChatStreamChunk.Delta("stub ");
+            yield return ChatStreamChunk.Delta("reply");
+            yield return ChatStreamChunk.Done(
+                conversationId ?? "generated",
+                "stub reply",
+                [.. enabledAgentNames],
+                "SupervisorAgent");
         }
     }
 }
